@@ -50,6 +50,9 @@ async def test_room_readiness_waits_for_join_and_requests_zero_history(config):
     client = connection.client
     client.init_plugins()
     client.send_presence = Mock()
+    client.plugin["xep_0030"].get_info = AsyncMock(
+        return_value={"disco_info": {"features": []}}
+    )
     presence = client.make_presence(pfrom=f"{config.rooms[0]}/{config.nickname}")
     client.plugin["xep_0045"].join_muc_wait = AsyncMock(
         return_value=(presence, None, [], [])
@@ -111,5 +114,5 @@ async def test_inbound_sdk_callback_copies_stanzas_before_queueing(config):
     message["body"] = "original"
     connection._message(message)
     message["body"] = "mutated"
-    assert received[0].find("{jabber:client}body").text == "original"
+    assert received[0].stanza.find("{jabber:client}body").text == "original"
     await connection.close()

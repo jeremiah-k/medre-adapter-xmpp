@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ['3.11', '3.12', '3.13', '3.14']
+        python: ["3.11", "3.12", "3.13", "3.14"]
         mode: [fake, sdk]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -67,10 +67,10 @@ jobs:
           uv pip install --python .core/.venv/bin/python --no-deps -e .
       - name: Run deterministic provider contracts
         if: matrix.mode == 'fake'
-        run: .core/.venv/bin/python -m pytest -q -ra
+        run: .core/.venv/bin/python -m pytest -q -ra --cov=medre.adapters.xmpp --cov-branch --cov-report=xml:coverage-fake.xml --junitxml=junit-fake.xml
       - name: Run pinned SDK contracts
         if: matrix.mode == 'sdk'
-        run: .core/.venv/bin/python -m pytest -q -m xmpp_sdk
+        run: .core/.venv/bin/python -m pytest -q -m xmpp_sdk --cov=medre.adapters.xmpp --cov-branch --cov-report=xml:coverage-sdk.xml --junitxml=junit-sdk.xml
       - name: Prove fake routing through the installed CLI
         if: matrix.mode == 'fake'
         env:
@@ -84,3 +84,18 @@ jobs:
           .core/.venv/bin/python -m build --wheel
           uv pip install --python .core/.venv/bin/python --no-deps --force-reinstall dist/*.whl
           .core/.venv/bin/python -I -c "from importlib.metadata import distribution; s = next(e for e in distribution('medre-adapter-xmpp').entry_points if e.group == 'medre.adapters').load()(); assert s.transport == 'xmpp'; assert s.config.load().__module__ == 'medre.adapters.xmpp.config'"
+      - name: Upload provider coverage
+        if: ${{ !cancelled() && matrix.python == '3.13' }}
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage-${{ matrix.mode }}.xml
+          flags: ${{ matrix.mode }}
+          fail_ci_if_error: false
+      - name: Upload provider test results
+        if: ${{ !cancelled() && matrix.python == '3.13' }}
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: junit-${{ matrix.mode }}.xml
+          report_type: test_results

@@ -9,7 +9,7 @@ from medre.core.planning.capabilities import resolve_adapter_capabilities
 from medre.core.rendering.renderer import RenderingContext
 from medre.core.routing.models import RouteTarget
 from medre.adapters.xmpp.adapter import XMPPAdapter, CAPABILITIES
-from medre.adapters.xmpp.codec import XMPPCodec
+from medre.adapters.xmpp.codec import InboundStanza, XMPPCodec
 from medre.adapters.xmpp.fake import FakeXMPPAdapter
 from medre.adapters.xmpp.renderer import XMPPRenderer
 from conftest import NOW, rendered, stanza
@@ -85,7 +85,7 @@ async def test_adapter_only_transports_rendered_payload(config, context):
     session.send.assert_awaited_once_with(result.payload)
     assert handoff.confirmation_level == "local_transport"
     assert handoff.native_message_id == "wire-id"
-    await adapter._receive(stanza())
+    await adapter._receive(InboundStanza(stanza()))
     assert len(events) == 1
     assert (await adapter.health_check()).health == "healthy"
     await adapter.stop()
@@ -132,10 +132,22 @@ def test_capabilities_do_not_claim_unimplemented_protocol_features():
 async def test_declared_capabilities_feed_planning_resolution(config):
     real = XMPPAdapter(config)
     fake = FakeXMPPAdapter(config.adapter_id, config)
-    assert real._capabilities == CAPABILITIES
-    assert fake._capabilities == CAPABILITIES
+    assert real._capabilities == replace(
+        CAPABILITIES, max_text_bytes=config.max_text_bytes
+    )
+    assert fake._capabilities == real._capabilities
     health = await fake.health_check()
     resolved = resolve_adapter_capabilities(
         {config.adapter_id: fake}, RouteTarget(adapter=config.adapter_id)
     )
     assert resolved == health.capabilities
+
+
+async def test_configured_budget_is_shared_by_planning_and_health(config):
+    limited = replace(config, max_text_bytes=257)
+    for adapter in (XMPPAdapter(limited), FakeXMPPAdapter(limited.adapter_id, limited)):
+        resolved = resolve_adapter_capabilities(
+            {limited.adapter_id: adapter}, RouteTarget(adapter=limited.adapter_id)
+        )
+        assert resolved.max_text_bytes == 257
+        assert resolved == (await adapter.health_check()).capabilities

@@ -13,7 +13,7 @@ from medre.core.contracts.adapter import (
 from medre.core.events.canonical import CanonicalEvent
 from medre.core.rendering.renderer import RenderingResult
 
-from .adapter import CAPABILITIES, XMPPAdapter, validate_payload
+from .adapter import XMPPAdapter, validate_payload
 from .codec import CLIENT
 from .config import XMPPConfig
 
@@ -79,7 +79,7 @@ class FakeXMPPAdapter(XMPPAdapter):
             self.platform,
             self.role,
             "0.1.0",
-            CAPABILITIES,
+            self._capabilities,
             health="healthy" if self._started else "unknown",
         )
 

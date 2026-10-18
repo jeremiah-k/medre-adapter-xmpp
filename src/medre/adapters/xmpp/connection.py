@@ -7,14 +7,16 @@ import ssl
 import uuid
 from collections.abc import Callable, Mapping
 from typing import Any
-from xml.etree.ElementTree import Element
 from .config import XMPPConfig
+from .codec import InboundStanza
 
 from medre.core.contracts.adapter import AdapterPermanentError, AdapterSendError
 
 
 class SlixConnection:
-    def __init__(self, config: XMPPConfig, receive: Callable[[Element], None]) -> None:
+    def __init__(
+        self, config: XMPPConfig, receive: Callable[[InboundStanza], None]
+    ) -> None:
         # Native imports occur only when the real session starts.
         from slixmpp import ClientXMPP, JID
 
@@ -45,6 +47,7 @@ class SlixConnection:
         self.closed = asyncio.Event()
         self._handlers: set[asyncio.Task] = set()
         self._connect_task = None
+        self.trusted_rooms: frozenset[str] = frozenset()
         self.client.add_event_handler("session_start", self._session_started)
         # A failed SASL mechanism is retryable by Slixmpp; exhaustion is terminal.
         self.client.add_event_handler("failed_all_auth", self._failed_auth)
@@ -73,6 +76,8 @@ class SlixConnection:
             self.ready.set_exception(AdapterSendError("XMPP connection failed"))
 
     async def _session_started(self, _event: Any) -> None:
+        from slixmpp.exceptions import IqError, IqTimeout
+
         task = asyncio.current_task()
         self._handlers.add(task)
         try:
@@ -89,6 +94,17 @@ class SlixConnection:
                     raise AdapterPermanentError(
                         "XMPP room joined under an unexpected occupant identity"
                     )
+                # Only the assigning room can attest to its stanza-ID rules.
+                # Servers without discovery support still carry ordinary text.
+                try:
+                    info = await self.client.plugin["xep_0030"].get_info(
+                        jid=room,
+                        timeout=self.config.connect_timeout_seconds,
+                    )
+                except (TimeoutError, IqError, IqTimeout):
+                    continue
+                if "urn:xmpp:sid:0" in info["disco_info"]["features"]:
+                    self.trusted_rooms = self.trusted_rooms | {room}
             self.client.plugin["xep_0199"].enable_keepalive(interval=60, timeout=15)
             if not self.ready.done():
                 self.ready.set_result(None)
@@ -125,7 +141,7 @@ class SlixConnection:
         # ingress queue so subsequent SDK processing cannot mutate its contents.
         from copy import deepcopy
 
-        self.receive(deepcopy(message.xml))
+        self.receive(InboundStanza(deepcopy(message.xml), self.trusted_rooms))
 
     async def wait_closed(self) -> None:
         await self.closed.wait()

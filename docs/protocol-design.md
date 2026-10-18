@@ -5,17 +5,17 @@ async Python XMPP implementation, so MEDRE does not implement DNS discovery,
 SASL, TLS negotiation, XML streams or MUC from scratch. The SDK is pinned in the
 provider metadata; MEDRE core remains independent of that dependency.
 
-| Contract | Decision |
-| --- | --- |
-| [RFC 6121 messaging](https://www.rfc-editor.org/rfc/rfc6121) | Direct `chat`/`normal` bodies use a configured peer's bare JID. |
-| [RFC 7622 JIDs](https://www.rfc-editor.org/rfc/rfc7622) | Configuration retains exact addresses; Slixmpp prepares them before native startup and rejects changed identities. |
-| [XEP-0045 MUC](https://xmpp.org/extensions/xep-0045.html) | Join configured rooms, request no history, retain occupant JIDs, suppress own echoes. |
-| [XEP-0199 ping](https://xmpp.org/extensions/xep-0199.html) | Enable SDK keepalive after readiness; close and rejoin after a dead connection. |
-| [XEP-0203 delay](https://xmpp.org/extensions/xep-0203.html) | Exclude delayed history from this live-only bridge. |
-| [XEP-0359 IDs](https://xmpp.org/extensions/xep-0359.html) | Avoid trusting arbitrary stanza-ID assertions without feature and assigning-entity verification. |
-| [XEP-0461 replies](https://xmpp.org/extensions/xep-0461.html) | Retain inbound reference as a relation; render replies through core's plain-text fallback. |
-| [XEP-0085 chat states](https://xmpp.org/extensions/xep-0085.html) | Keep bodyless activity out of durable message history; add forwarding only through an ephemeral core seam. |
-| [XEP-0184 delivery receipts](https://xmpp.org/extensions/xep-0184.html), [XEP-0333 displayed markers](https://xmpp.org/extensions/xep-0333.html) | Keep protocol observations separate from local transport handoff; no receipt capability is claimed. |
+| Contract                                                                                                                                         | Decision                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| [RFC 6121 messaging](https://www.rfc-editor.org/rfc/rfc6121)                                                                                     | Direct `chat`/`normal` bodies use a configured peer's bare JID.                                                    |
+| [RFC 7622 JIDs](https://www.rfc-editor.org/rfc/rfc7622)                                                                                          | Configuration retains exact addresses; Slixmpp prepares them before native startup and rejects changed identities. |
+| [XEP-0045 MUC](https://xmpp.org/extensions/xep-0045.html)                                                                                        | Join configured rooms, request no history, retain occupant JIDs, suppress own echoes.                              |
+| [XEP-0199 ping](https://xmpp.org/extensions/xep-0199.html)                                                                                       | Enable SDK keepalive after readiness; close and rejoin after a dead connection.                                    |
+| [XEP-0203 delay](https://xmpp.org/extensions/xep-0203.html)                                                                                      | Exclude delayed history from this live-only bridge.                                                                |
+| [XEP-0359 IDs](https://xmpp.org/extensions/xep-0359.html)                                                                                        | Avoid trusting arbitrary stanza-ID assertions without feature and assigning-entity verification.                   |
+| [XEP-0461 replies](https://xmpp.org/extensions/xep-0461.html)                                                                                    | Retain inbound reference as a relation; render replies through core's plain-text fallback.                         |
+| [XEP-0085 chat states](https://xmpp.org/extensions/xep-0085.html)                                                                                | Keep bodyless activity out of durable message history; add forwarding only through an ephemeral core seam.         |
+| [XEP-0184 delivery receipts](https://xmpp.org/extensions/xep-0184.html), [XEP-0333 displayed markers](https://xmpp.org/extensions/xep-0333.html) | Keep protocol observations separate from local transport handoff; no receipt capability is claimed.                |
 
 This is a text bridge, not a complete XMPP client. The current canonical envelope
 already represents source identity, native references, reply relations and

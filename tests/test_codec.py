@@ -46,7 +46,7 @@ def test_direct_conversation_survives_resource_changes(config):
     b = codec.decode(
         stanza(sender="alice@example.org/desktop", kind="chat"), timestamp=NOW
     )
-    assert a.event_id == b.event_id
+    assert a.event_id != b.event_id
     assert a.source_channel_id == a.source_transport_id == "alice@example.org"
 
 
@@ -100,7 +100,9 @@ def test_reply_retains_native_target_without_inventing_ownership(config):
         "{urn:xmpp:reply:0}reply",
         {"id": "parent", "to": "room@conference.example.org/bob"},
     )
-    event = XMPPCodec(config).decode(message, timestamp=NOW)
+    event = XMPPCodec(config).decode(
+        message, timestamp=NOW, trusted_rooms=frozenset(config.rooms)
+    )
     assert event.relations[0].target_event_id is None
     assert event.relations[0].target_fact is None
     assert event.relations[0].target_native_ref.native_message_id == "parent"
@@ -129,7 +131,9 @@ def test_muc_reply_uses_room_assigned_native_reference(config):
         "{urn:xmpp:sid:0}stanza-id",
         {"by": config.rooms[0], "id": "muc-service-id"},
     )
-    original = XMPPCodec(config).decode(earlier, timestamp=NOW)
+    original = XMPPCodec(config).decode(
+        earlier, timestamp=NOW, trusted_rooms=frozenset(config.rooms)
+    )
     assert original.source_native_ref.native_message_id == "muc-service-id"
     assert original.metadata.native.data["xmpp"]["stanza_id"] == "client-msg-1"
     assert original.metadata.native.data["xmpp"]["room_stanza_id"] == "muc-service-id"
@@ -140,7 +144,9 @@ def test_muc_reply_uses_room_assigned_native_reference(config):
         "{urn:xmpp:reply:0}reply",
         {"id": "muc-service-id", "to": f"{config.rooms[0]}/alice"},
     )
-    result = XMPPCodec(config).decode(reply, timestamp=NOW)
+    result = XMPPCodec(config).decode(
+        reply, timestamp=NOW, trusted_rooms=frozenset(config.rooms)
+    )
     assert result.relations[0].target_native_ref == original.source_native_ref
 
 
@@ -164,7 +170,12 @@ def test_muc_rejects_conflicting_room_stanza_ids(config):
             "{urn:xmpp:sid:0}stanza-id",
             {"by": config.rooms[0], "id": value},
         )
-    assert XMPPCodec(config).decode(original, timestamp=NOW) is None
+    assert (
+        XMPPCodec(config).decode(
+            original, timestamp=NOW, trusted_rooms=frozenset(config.rooms)
+        )
+        is None
+    )
 
 
 def test_direct_chat_keeps_client_native_id(config):
@@ -172,3 +183,35 @@ def test_direct_chat_keeps_client_native_id(config):
         stanza(sender="alice@example.org/mobile", kind="chat"), timestamp=NOW
     )
     assert result.source_native_ref.native_message_id == "native-1"
+
+
+def test_unverified_room_cannot_assign_reference_or_reply_identity(config):
+    message = stanza()
+    SubElement(
+        message, "{urn:xmpp:sid:0}stanza-id", {"by": config.rooms[0], "id": "forged"}
+    )
+    SubElement(message, "{urn:xmpp:reply:0}reply", {"id": "claimed-target"})
+    event = XMPPCodec(config).decode(message, timestamp=NOW)
+    assert event.source_native_ref is None
+    assert not event.relations
+    assert event.metadata.native.data["xmpp"]["room_stanza_id"] is None
+
+
+def test_verified_room_ids_do_not_depend_on_occupant_nickname(config):
+    first = stanza(sender=f"{config.rooms[0]}/alice")
+    second = stanza(sender=f"{config.rooms[0]}/renamed")
+    for message in (first, second):
+        SubElement(
+            message,
+            "{urn:xmpp:sid:0}stanza-id",
+            {"by": config.rooms[0], "id": "stable-room-id"},
+        )
+    codec = XMPPCodec(config)
+    assert (
+        codec.decode(
+            first, timestamp=NOW, trusted_rooms=frozenset(config.rooms)
+        ).event_id
+        == codec.decode(
+            second, timestamp=NOW, trusted_rooms=frozenset(config.rooms)
+        ).event_id
+    )

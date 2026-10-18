@@ -17,6 +17,12 @@ resource changes. Nicknames MUST NOT be promoted to account identities.
 The codec MUST derive repeatable canonical IDs from the adapter, conversation,
 sender and an available message ID. In a MUC, a room-issued XEP-0359
 `stanza-id` with `by` equal to the configured bare room JID takes precedence
+only after that room advertises `urn:xmpp:sid:0` through XEP-0030 discovery.
+Discovery evidence MUST travel with the received stanza through queued admission
+and MUST NOT be borrowed from a replacement connection. Verified IDs are scoped
+to their assigning room; client IDs are scoped to the full sending JID. Bare-JID
+conversation identity MUST NOT collapse independent resource message IDs.
+A verified room ID takes precedence
 for the native reference, enabling XEP-0461 replies to address that room ID.
 The sender-provided `id` remains recorded separately for diagnostics and
 canonical deduplication but MUST NOT be registered as a MUC reply native
@@ -62,6 +68,9 @@ provider registers no outgoing stanza transformations or stream-management
 plugin and uses the SDK's immediate `send_raw` transport seam after SDK stanza
 serialization. Any future encryption or stream-management support MUST revisit
 this handoff contract rather than bypass its filters.
+
+The configured `max_text_bytes` budget MUST be reported consistently to core
+planning and health checks for real and fake adapter instances.
 
 ## Connection lifecycle
 

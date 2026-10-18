@@ -6,7 +6,7 @@ import asyncio
 import logging
 from collections.abc import Callable, Awaitable, Mapping
 from typing import Any
-from xml.etree.ElementTree import Element
+from .codec import InboundStanza
 
 from medre.core.contracts.adapter import AdapterPermanentError, AdapterSendError
 
@@ -19,7 +19,7 @@ class XMPPSession:
     def __init__(
         self,
         config: XMPPConfig,
-        receive: Callable[[Element], Awaitable[None]],
+        receive: Callable[[InboundStanza], Awaitable[None]],
         *,
         connection_factory: Callable[..., Any] | None = None,
     ) -> None:
@@ -58,7 +58,7 @@ class XMPPSession:
             await self.stop()
             raise
 
-    def _enqueue(self, stanza: Element) -> None:
+    def _enqueue(self, stanza: InboundStanza) -> None:
         if not self._accepting:
             return
         try:

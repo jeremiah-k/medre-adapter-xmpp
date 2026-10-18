@@ -9,3 +9,7 @@ dist/
 htmlcov/
 .env
 .medre-dev.yaml
+
+.core/
+coverage-*.xml
+junit-*.xml

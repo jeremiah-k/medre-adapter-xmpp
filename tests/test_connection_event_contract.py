@@ -15,6 +15,9 @@ class DummyClient:
         self.handlers = {}
         self.plugin = {
             "xep_0045": SimpleNamespace(join_muc_wait=AsyncMock()),
+            "xep_0030": SimpleNamespace(
+                get_info=AsyncMock(return_value={"disco_info": {"features": []}})
+            ),
             "xep_0199": SimpleNamespace(enable_keepalive=lambda **kw: None),
         }
 
@@ -30,6 +33,11 @@ class DummyClient:
 
 @pytest.fixture
 def client_stub(monkeypatch):
+    monkeypatch.setitem(
+        sys.modules,
+        "slixmpp.exceptions",
+        SimpleNamespace(IqError=ValueError, IqTimeout=TimeoutError),
+    )
     monkeypatch.setitem(
         sys.modules,
         "slixmpp",
@@ -66,3 +74,39 @@ async def test_other_join_failure_is_retryable(config, client_stub):
     await connection._session_started(None)
     with pytest.raises(AdapterSendError, match="session setup failed"):
         await connection.ready
+
+
+async def test_room_id_support_is_discovered_before_trusting_stanzas(
+    config, client_stub
+):
+    from xml.etree.ElementTree import Element
+
+    received = []
+    connection = SlixConnection(config, received.append)
+    connection.client.plugin["xep_0045"].join_muc_wait.return_value = (
+        {"from": f"{config.rooms[0]}/{config.nickname}"},
+    )
+    connection.client.plugin["xep_0030"].get_info.return_value = {
+        "disco_info": {"features": ["urn:xmpp:sid:0"]}
+    }
+    await connection._session_started(None)
+    assert await connection.ready is None
+    connection.client.plugin["xep_0030"].get_info.assert_awaited_once_with(
+        jid=config.rooms[0], timeout=config.connect_timeout_seconds
+    )
+    connection._message(SimpleNamespace(xml=Element("message")))
+    connection.trusted_rooms = frozenset()
+    assert received[0].trusted_rooms == frozenset(config.rooms)
+
+
+async def test_rooms_without_id_discovery_keep_plain_text_readiness(
+    config, client_stub
+):
+    connection = SlixConnection(config, lambda _: None)
+    connection.client.plugin["xep_0045"].join_muc_wait.return_value = (
+        {"from": f"{config.rooms[0]}/{config.nickname}"},
+    )
+    connection.client.plugin["xep_0030"].get_info.side_effect = TimeoutError
+    await connection._session_started(None)
+    assert await connection.ready is None
+    assert not connection.trusted_rooms

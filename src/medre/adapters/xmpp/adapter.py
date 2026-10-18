@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Callable
 from typing import Any
-from xml.etree.ElementTree import Element
 from dataclasses import replace
 
 from medre.core.contracts.adapter import (
@@ -19,7 +18,7 @@ from medre.core.contracts.adapter import (
 )
 from medre.core.rendering.renderer import RenderingResult
 
-from .codec import XMPPCodec
+from .codec import InboundStanza, XMPPCodec
 from .config import XMPPConfig, plain_text
 
 CAPABILITIES = AdapterCapabilities(
@@ -74,7 +73,7 @@ class XMPPAdapter(AdapterContract):
         super().__init__()
         self.config = config.validate()
         self.adapter_id = config.adapter_id
-        self._capabilities = CAPABILITIES
+        self._capabilities = replace(CAPABILITIES, max_text_bytes=config.max_text_bytes)
         self.codec = XMPPCodec(config)
         self.ctx: AdapterContext | None = None
         self.session = None
@@ -97,8 +96,12 @@ class XMPPAdapter(AdapterContract):
             self.session = None
             raise
 
-    async def _receive(self, stanza: Element) -> None:
-        event = self.codec.decode(stanza, timestamp=self.ctx.clock())
+    async def _receive(self, packet: InboundStanza) -> None:
+        event = self.codec.decode(
+            packet.stanza,
+            timestamp=self.ctx.clock(),
+            trusted_rooms=packet.trusted_rooms,
+        )
         if event is not None:
             await self.publish_inbound(event)
 
@@ -137,6 +140,6 @@ class XMPPAdapter(AdapterContract):
             self.platform,
             self.role,
             "0.1.0",
-            replace(CAPABILITIES, max_text_bytes=self.config.max_text_bytes),
+            self._capabilities,
             health=state,
         )
