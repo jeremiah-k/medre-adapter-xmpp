@@ -5,8 +5,8 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from collections.abc import Iterable
+from typing import Any
 from medre.config.paths import MedrePaths
-from medre.core.routing.models import Route
 
 
 def bare_jid(value: str) -> str:
@@ -129,7 +129,7 @@ class XMPPConfig:
 
 
 def prepare_config(
-    config: XMPPConfig, *, adapter_id: str, paths: MedrePaths, routes: Iterable[Route]
+    config: XMPPConfig, *, adapter_id: str, paths: MedrePaths, routes: Iterable[Any]
 ) -> XMPPConfig:
     """Refuse routes that cannot match an admitted XMPP conversation."""
     del paths
