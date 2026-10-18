@@ -74,6 +74,7 @@ class XMPPAdapter(AdapterContract):
         super().__init__()
         self.config = config.validate()
         self.adapter_id = config.adapter_id
+        self._capabilities = CAPABILITIES
         self.codec = XMPPCodec(config)
         self.ctx: AdapterContext | None = None
         self.session = None
