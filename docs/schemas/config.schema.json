@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "title": "XMPP adapter instance configuration",
+  "description": "Native credentials may be supplied through MEDRE environment overrides. Runtime validation additionally checks exact bare JIDs, disjoint room and peer lists, and paired host/port overrides.",
+  "properties": {
+    "adapter_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "adapter_kind": {
+      "enum": [
+        "real",
+        "fake"
+      ]
+    },
+    "jid": {
+      "type": "string"
+    },
+    "password": {
+      "type": "string",
+      "writeOnly": true
+    },
+    "rooms": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 3
+      },
+      "uniqueItems": true
+    },
+    "peers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 3
+      },
+      "uniqueItems": true
+    },
+    "nickname": {
+      "type": "string",
+      "minLength": 1
+    },
+    "host": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "port": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "connect_timeout_seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "reconnect_delay_seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "max_text_bytes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "inbound_queue_size": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "origin_label": {
+      "type": "string"
+    },
+    "relay_prefix": {
+      "type": "string"
+    }
+  }
+}
