@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "title": "XMPP native metadata namespace version 1",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "sender_jid": {
+      "type": "string"
+    },
+    "nickname": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "message_type": {
+      "enum": [
+        "chat",
+        "normal",
+        "groupchat"
+      ]
+    },
+    "stanza_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "room_stanza_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Room-assigned XEP-0359 stanza-id; null when absent or unverified."
+    }
+  },
+  "required": [
+    "schema_version",
+    "sender_jid",
+    "nickname",
+    "message_type",
+    "stanza_id"
+  ]
+}

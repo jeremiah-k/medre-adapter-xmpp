@@ -1,0 +1,46 @@
+[project]
+name = "medre-adapter-xmpp"
+version = "0.1.0"
+description = "XMPP direct chat and multi-user rooms for MEDRE"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = ["medre>=0.1.0,<0.2.0", "slixmpp==1.17.0"]
+classifiers = ["Typing :: Typed"]
+
+[project.entry-points."medre.adapters"]
+xmpp = "medre_adapter_xmpp.plugin:adapter_spec"
+
+[project.optional-dependencies]
+test = ["pytest==9.1.1", "pytest-asyncio==1.4.0", "pytest-timeout==2.4.0", "jsonschema==4.26.0"]
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+medre_adapter_xmpp = ["py.typed"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+pythonpath = ["src"]
+filterwarnings = ["error"]
+timeout = 30
+addopts = "-m 'not xmpp_sdk and not live'"
+markers = ["xmpp_sdk: contracts against the pinned SDK without network access", "live: authenticated tests against an explicitly configured XMPP server"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["F", "E4", "E7", "E9", "B", "ASYNC", "RUF100"]
+# stop(timeout=...) implements MEDRE's lifecycle contract.
+ignore = ["ASYNC109"]
+
+[tool.black]
+target-version = ["py311"]
