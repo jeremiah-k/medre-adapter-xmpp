@@ -83,4 +83,4 @@ jobs:
         run: |
           .core/.venv/bin/python -m build --wheel
           uv pip install --python .core/.venv/bin/python --no-deps --force-reinstall dist/*.whl
-          .core/.venv/bin/python -I -c "from importlib.metadata import distribution; s = next(e for e in distribution('medre-adapter-xmpp').entry_points if e.group == 'medre.adapters').load()(); assert s.transport == 'xmpp'; assert s.config.load().__module__ == 'medre_adapter_xmpp.config'"
+          .core/.venv/bin/python -I -c "from importlib.metadata import distribution; s = next(e for e in distribution('medre-adapter-xmpp').entry_points if e.group == 'medre.adapters').load()(); assert s.transport == 'xmpp'; assert s.config.load().__module__ == 'medre.adapters.xmpp.config'"

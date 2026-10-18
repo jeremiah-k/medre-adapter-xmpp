@@ -7,7 +7,7 @@ from xml.etree.ElementTree import fromstring
 import pytest
 
 from medre.core.contracts.adapter import AdapterSendError
-from medre_adapter_xmpp.connection import SlixConnection
+from medre.adapters.xmpp.connection import SlixConnection
 
 pytestmark = pytest.mark.xmpp_sdk
 

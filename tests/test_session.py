@@ -4,7 +4,7 @@ from dataclasses import replace
 import pytest
 
 from medre.core.contracts.adapter import AdapterPermanentError, AdapterSendError
-from medre_adapter_xmpp.session import XMPPSession
+from medre.adapters.xmpp.session import XMPPSession
 
 
 class Connection:

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from medre.core.contracts.adapter import AdapterPermanentError, AdapterSendError
-from medre_adapter_xmpp.connection import SlixConnection
+from medre.adapters.xmpp.connection import SlixConnection
 
 
 class DummyClient:

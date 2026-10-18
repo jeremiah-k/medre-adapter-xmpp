@@ -3,7 +3,7 @@ from xml.etree.ElementTree import SubElement
 
 import pytest
 
-from medre_adapter_xmpp.codec import CLIENT, MUTATIONS, XMPPCodec
+from medre.adapters.xmpp.codec import CLIENT, MUTATIONS, XMPPCodec
 from conftest import NOW, stanza
 
 
