@@ -177,3 +177,46 @@ async def test_cancelling_start_does_not_leave_connection_work(config):
         await task
     assert connections[0].close_calls == 1
     assert session._runner is session._worker is None
+
+
+async def test_cleanup_failure_does_not_end_the_reconnect_loop(config):
+    second_open = asyncio.Event()
+    connections = []
+
+    class FailingClose(Connection):
+        async def close(self):
+            self.close_calls += 1
+            self.closed.set()
+            raise RuntimeError("sdk teardown failed")
+
+    def factory(*args):
+        if connections:
+            connection = Connection(*args)
+            original = connection.open
+
+            async def open_second():
+                await original()
+                second_open.set()
+
+            connection.open = open_second
+        else:
+            connection = FailingClose(*args)
+        connections.append(connection)
+        return connection
+
+    async def receive(_):
+        pass
+
+    session = XMPPSession(
+        replace(config, reconnect_delay_seconds=0.001),
+        receive,
+        connection_factory=factory,
+    )
+    await session.start()
+    connections[0].closed.set()
+    await asyncio.wait_for(second_open.wait(), 2)
+    assert session.state == "healthy"
+    assert session.reconnects == 1
+    assert connections[0].close_calls == 1
+    await session.stop()
+    assert connections[1].close_calls == 1

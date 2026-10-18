@@ -25,6 +25,9 @@ from medre_adapter_xmpp.plugin import adapter_spec
         " a@example.org",
         "a@exam ple.org",
         "a@example.org\n",
+        "Room@conference.example.org",
+        "room@Conference.example.org",
+        "Alice@example.org",
     ],
 )
 def test_conversations_reject_ambiguous_addresses(jid):

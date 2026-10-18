@@ -110,7 +110,12 @@ class XMPPSession:
             finally:
                 self._connection = None
                 if connection is not None:
-                    await connection.close()
+                    # Teardown errors must not end the reconnect loop; only
+                    # cancellation is allowed to propagate out of cleanup.
+                    try:
+                        await connection.close()
+                    except Exception:
+                        _logger.warning("XMPP connection cleanup failed")
             self.state = "degraded"
             self.reconnects += 1
             await asyncio.sleep(self.config.reconnect_delay_seconds)

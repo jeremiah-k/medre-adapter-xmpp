@@ -23,6 +23,9 @@ def bare_jid(value: str) -> str:
         or "/" in value
         or any(ord(c) <= 32 or ord(c) == 127 for c in value)
         or not all(value.split("@"))
+        # RFC 7622 preparation case-folds ASCII uppercase, so a server-supplied
+        # address can never match a mixed-case configured conversation.
+        or any("A" <= c <= "Z" for c in value)
     ):
         raise ValueError("XMPP conversations require a bare user@domain JID")
     return value
