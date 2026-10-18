@@ -12,7 +12,12 @@ classifiers = ["Typing :: Typed"]
 xmpp = "medre.adapters.xmpp.plugin:adapter_spec"
 
 [project.optional-dependencies]
-test = ["pytest==9.1.1", "pytest-asyncio==1.4.0", "pytest-timeout==2.4.0", "jsonschema==4.26.0"]
+test = [
+  "pytest==9.1.1",
+  "pytest-asyncio==1.4.0",
+  "pytest-timeout==2.4.0",
+  "jsonschema==4.26.0",
+]
 
 [build-system]
 requires = ["setuptools>=77"]
@@ -32,7 +37,10 @@ pythonpath = ["src"]
 filterwarnings = ["error"]
 timeout = 30
 addopts = "-m 'not xmpp_sdk and not live'"
-markers = ["xmpp_sdk: contracts against the pinned SDK without network access", "live: authenticated tests against an explicitly configured XMPP server"]
+markers = [
+  "xmpp_sdk: contracts against the pinned SDK without network access",
+  "live: authenticated tests against an explicitly configured XMPP server",
+]
 
 [tool.ruff]
 line-length = 88

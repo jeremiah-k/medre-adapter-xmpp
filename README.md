@@ -64,7 +64,7 @@ or native transport delivery.
 ## Behavior
 
 - Relay plain text with MEDRE's shared attribution formatter. `relay_prefix`
-  defaults to `[{origin_label}] {sender}: `; an empty string suppresses it.
+  defaults to `[{origin_label}] {sender}:` followed by a space; an empty string suppresses it.
 - Join every configured MUC room before readiness, request zero history, and
   rejoin after disconnect. Authentication rejection requires operator action.
 - Exclude self echoes, delayed history, bodyless typing/receipt notifications,
