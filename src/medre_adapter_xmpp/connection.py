@@ -46,7 +46,8 @@ class SlixConnection:
         self._handlers: set[asyncio.Task] = set()
         self._connect_task = None
         self.client.add_event_handler("session_start", self._session_started)
-        self.client.add_event_handler("failed_auth", self._failed_auth)
+        # A failed SASL mechanism is retryable by Slixmpp; exhaustion is terminal.
+        self.client.add_event_handler("failed_all_auth", self._failed_auth)
         self.client.add_event_handler("disconnected", self._disconnected)
         # One message hook handles direct chat and MUC once; never register
         # both message and groupchat_message callbacks for the same stanza.
@@ -91,6 +92,9 @@ class SlixConnection:
             self.client.plugin["xep_0199"].enable_keepalive(interval=60, timeout=15)
             if not self.ready.done():
                 self.ready.set_result(None)
+        except AdapterPermanentError as error:
+            if not self.ready.done():
+                self.ready.set_exception(error)
         except Exception:
             if not self.ready.done():
                 self.ready.set_exception(

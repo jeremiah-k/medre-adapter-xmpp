@@ -15,11 +15,15 @@ conversation are the sender's bare JID, retaining the same context across
 resource changes. Nicknames MUST NOT be promoted to account identities.
 
 The codec MUST derive repeatable canonical IDs from the adapter, conversation,
-sender and stanza ID when an ID exists. Missing native IDs MUST remain absent
-from native references; independent arrivals without IDs receive distinct
-canonical IDs. Sender-provided IDs remain scoped observations, not trusted
-server IDs or authorship proofs. The adapter MUST NOT treat an unverified
-XEP-0359 stanza ID as globally authoritative.
+sender and an available message ID. In a MUC, a room-issued XEP-0359
+`stanza-id` with `by` equal to the configured bare room JID takes precedence
+for the native reference, enabling XEP-0461 replies to address that room ID.
+The sender-provided `id` remains recorded separately for diagnostics and
+canonical deduplication but MUST NOT be registered as a MUC reply native
+reference when the room-issued ID is absent. Direct chats continue using the
+client `id`. Unknown `by` authorities MUST NOT override the reference. Neither identifier proves
+authorship, recipient delivery, or global identity. Independent arrivals
+without IDs receive distinct canonical IDs.
 
 ## Inbound admission
 
@@ -70,7 +74,7 @@ Slixmpp owns DNS SRV discovery, authentication, stanza parsing and MUC protocol
 handling. A host override MUST supply its port as well. The session owns bounded
 startup time, a bounded ingress queue, and lifetime reconnection with a positive
 retry delay. Each replacement connection authenticates and rejoins rooms.
-Authentication rejection MUST stop retries. Room self-unavailability MUST
+Exhaustion of all SASL authentication mechanisms MUST stop retries; a single mechanism failure MAY precede a successful fallback. Unexpected MUC occupant identity is a permanent configuration failure, not a reconnect condition. Room self-unavailability MUST
 invalidate readiness. Shutdown MUST cancel connection attempts, join handlers,
 keepalive schedules, the SDK filter worker, the reconnect task and ingress
 worker. Queued work is not durable and MUST NOT survive a session restart.

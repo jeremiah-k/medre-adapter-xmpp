@@ -91,13 +91,29 @@ class XMPPCodec:
         ):
             return None
         conversation = sender_bare
+        # MUC reply IDs (XEP-0461) refer to room-issued stanza IDs
+        # (XEP-0359), not the sender's message id attribute. Preserve the
+        # latter in metadata for diagnostics and older servers without SIDs.
+        room_id = None
+        if kind == "groupchat":
+            for entry in stanza.findall("{urn:xmpp:sid:0}stanza-id"):
+                candidate = entry.get("id", "")
+                if entry.get("by") == conversation and candidate.strip():
+                    if len(candidate.encode("utf-8")) > 1024:
+                        return None
+                    if room_id is not None and room_id != candidate:
+                        return None  # Contradictory room-issued IDs.
+                    room_id = candidate
+        # A sender-generated groupchat id is not in the MUC reply namespace;
+        # never register it as though a room service had assigned it.
+        ref_id = room_id if kind == "groupchat" else native_id
         scope = json.dumps(
-            [self.config.adapter_id, conversation, sender, native_id],
+            [self.config.adapter_id, conversation, sender, ref_id or native_id],
             ensure_ascii=False,
         )
         event_id = (
             "xmpp:" + hashlib.sha256(scope.encode()).hexdigest()
-            if native_id
+            if ref_id or native_id
             else "xmpp:" + uuid.uuid4().hex
         )
         relations = ()
@@ -127,8 +143,8 @@ class XMPPCodec:
             relations=relations,
             payload={"body": text},
             source_native_ref=(
-                NativeRef(self.config.adapter_id, conversation, native_id)
-                if native_id
+                NativeRef(self.config.adapter_id, conversation, ref_id)
+                if ref_id
                 else None
             ),
             metadata=EventMetadata(
@@ -141,6 +157,7 @@ class XMPPCodec:
                             "nickname": nickname or None,
                             "message_type": kind,
                             "stanza_id": native_id,
+                            "room_stanza_id": room_id,
                         }
                     }
                 ),

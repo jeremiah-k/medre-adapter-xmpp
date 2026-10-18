@@ -28,6 +28,13 @@
         "string",
         "null"
       ]
+    },
+    "room_stanza_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Room-assigned XEP-0359 stanza-id; null when absent or unverified."
     }
   },
   "required": [
