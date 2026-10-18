@@ -9,7 +9,7 @@ from medre.core.planning.capabilities import resolve_adapter_capabilities
 from medre.core.rendering.renderer import RenderingContext
 from medre.core.routing.models import RouteTarget
 from medre.adapters.xmpp.adapter import XMPPAdapter, CAPABILITIES
-from medre.adapters.xmpp.codec import XMPPCodec
+from medre.adapters.xmpp.codec import InboundStanza, XMPPCodec
 from medre.adapters.xmpp.fake import FakeXMPPAdapter
 from medre.adapters.xmpp.renderer import XMPPRenderer
 from conftest import NOW, rendered, stanza
@@ -85,7 +85,7 @@ async def test_adapter_only_transports_rendered_payload(config, context):
     session.send.assert_awaited_once_with(result.payload)
     assert handoff.confirmation_level == "local_transport"
     assert handoff.native_message_id == "wire-id"
-    await adapter._receive(stanza())
+    await adapter._receive(InboundStanza(stanza()))
     assert len(events) == 1
     assert (await adapter.health_check()).health == "healthy"
     await adapter.stop()
@@ -133,7 +133,7 @@ async def test_declared_capabilities_feed_planning_resolution(config):
     real = XMPPAdapter(config)
     fake = FakeXMPPAdapter(config.adapter_id, config)
     assert real._capabilities == CAPABILITIES
-    assert fake._capabilities == CAPABILITIES
+    assert fake._capabilities == real._capabilities
     health = await fake.health_check()
     resolved = resolve_adapter_capabilities(
         {config.adapter_id: fake}, RouteTarget(adapter=config.adapter_id)

@@ -6,6 +6,7 @@ import hashlib
 import json
 import uuid
 from datetime import datetime
+from dataclasses import dataclass
 from xml.etree.ElementTree import Element
 
 from medre.core.events.canonical import CanonicalEvent, EventRelation, NativeRef
@@ -27,11 +28,25 @@ MUTATIONS = frozenset(
 )
 
 
+@dataclass(frozen=True, slots=True)
+class InboundStanza:
+    """Native XML and the discovery evidence of its receiving connection."""
+
+    stanza: Element
+    trusted_rooms: frozenset[str] = frozenset()
+
+
 class XMPPCodec:
     def __init__(self, config: XMPPConfig) -> None:
         self.config = config
 
-    def decode(self, stanza: Element, *, timestamp: datetime) -> CanonicalEvent | None:
+    def decode(
+        self,
+        stanza: Element,
+        *,
+        timestamp: datetime,
+        trusted_rooms: frozenset[str] = frozenset(),
+    ) -> CanonicalEvent | None:
         """Map direct and MUC messages; controls, history and echoes yield None."""
         if stanza.tag != f"{{{CLIENT}}}message":
             return None
@@ -46,6 +61,7 @@ class XMPPCodec:
         ):
             return None
         sender = stanza.get("from", "")
+        sender_scope = sender
         sender_bare, _, nickname = sender.partition("/")
         try:
             bare_jid(sender_bare)
@@ -95,7 +111,7 @@ class XMPPCodec:
         # (XEP-0359), not the sender's message id attribute. Preserve the
         # latter in metadata for diagnostics and older servers without SIDs.
         room_id = None
-        if kind == "groupchat":
+        if kind == "groupchat" and conversation in trusted_rooms:
             for entry in stanza.findall("{urn:xmpp:sid:0}stanza-id"):
                 candidate = entry.get("id", "")
                 if entry.get("by") == conversation and candidate.strip():
@@ -108,7 +124,12 @@ class XMPPCodec:
         # never register it as though a room service had assigned it.
         ref_id = room_id if kind == "groupchat" else native_id
         scope = json.dumps(
-            [self.config.adapter_id, conversation, sender, ref_id or native_id],
+            [
+                self.config.adapter_id,
+                conversation,
+                conversation if room_id else sender_scope,
+                ref_id or native_id,
+            ],
             ensure_ascii=False,
         )
         event_id = (
@@ -118,7 +139,12 @@ class XMPPCodec:
         )
         relations = ()
         reply = stanza.find("{urn:xmpp:reply:0}reply")
-        if reply is not None and reply.get("id", "").strip():
+        if (
+            reply is not None
+            and reply.get("id", "").strip()
+            and len(reply.get("id").encode("utf-8")) <= 1024
+            and (kind != "groupchat" or conversation in trusted_rooms)
+        ):
             relations = (
                 EventRelation(
                     relation_type="reply",

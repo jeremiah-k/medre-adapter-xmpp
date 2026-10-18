@@ -92,7 +92,7 @@ async def test_native_room_ingress_and_direct_egress():
         )
         async with asyncio.timeout(10):
             while True:
-                reply = await replies.get()
+                reply = (await replies.get()).stanza
                 body = reply.find("{jabber:client}body")
                 if (
                     reply.get("type") == "chat"

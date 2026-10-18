@@ -34,7 +34,7 @@
         "string",
         "null"
       ],
-      "description": "Room-assigned XEP-0359 stanza-id; null when absent or unverified."
+      "description": "Room-assigned stanza ID from a room advertising XEP-0359 at receipt time; absent for unverified namespaces."
     }
   },
   "required": [
