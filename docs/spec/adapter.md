@@ -69,6 +69,9 @@ plugin and uses the SDK's immediate `send_raw` transport seam after SDK stanza
 serialization. Any future encryption or stream-management support MUST revisit
 this handoff contract rather than bypass its filters.
 
+The configured `max_text_bytes` budget MUST be reported consistently to core
+planning and health checks for real and fake adapter instances.
+
 ## Connection lifecycle
 
 Native startup MUST require credentials, verified TLS, and successful joins of

@@ -73,7 +73,7 @@ class XMPPAdapter(AdapterContract):
         super().__init__()
         self.config = config.validate()
         self.adapter_id = config.adapter_id
-        self._capabilities = CAPABILITIES
+        self._capabilities = replace(CAPABILITIES, max_text_bytes=config.max_text_bytes)
         self.codec = XMPPCodec(config)
         self.ctx: AdapterContext | None = None
         self.session = None
@@ -140,6 +140,6 @@ class XMPPAdapter(AdapterContract):
             self.platform,
             self.role,
             "0.1.0",
-            replace(CAPABILITIES, max_text_bytes=self.config.max_text_bytes),
+            self._capabilities,
             health=state,
         )
