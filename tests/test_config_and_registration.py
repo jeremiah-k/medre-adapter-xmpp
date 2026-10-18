@@ -8,8 +8,8 @@ import pytest
 
 from medre.config.loader import parse_runtime_config
 from medre.config.paths import resolve
-from medre_adapter_xmpp.config import XMPPConfig, bare_jid
-from medre_adapter_xmpp.plugin import adapter_spec
+from medre.adapters.xmpp.config import XMPPConfig, bare_jid
+from medre.adapters.xmpp.plugin import adapter_spec
 
 
 @pytest.mark.parametrize(
@@ -99,7 +99,7 @@ class NoSDK(importlib.abc.MetaPathFinder):
         if fullname.split('.')[0] in {'slixmpp','aiodns','pycares'}:
             raise AssertionError('SDK import: ' + fullname)
 sys.meta_path.insert(0, NoSDK())
-from medre_adapter_xmpp.plugin import adapter_spec
+from medre.adapters.xmpp.plugin import adapter_spec
 s=adapter_spec()
 s.config.load()
 s.renderer_factory.load()
@@ -133,7 +133,7 @@ def test_configuration_schema_matches_dataclass_fields():
 
 def test_route_preflight_refuses_unconfigured_source_and_destination(config):
     from types import SimpleNamespace
-    from medre_adapter_xmpp.config import prepare_config
+    from medre.adapters.xmpp.config import prepare_config
 
     def route(source, destination):
         return SimpleNamespace(
@@ -165,7 +165,7 @@ def test_native_schema_accepts_the_actual_codec_shape(config):
     import msgspec
     from jsonschema import Draft202012Validator
     from conftest import NOW, stanza
-    from medre_adapter_xmpp.codec import XMPPCodec
+    from medre.adapters.xmpp.codec import XMPPCodec
 
     schema = json.loads(
         (Path(__file__).parents[1] / "docs/schemas/native.schema.json").read_text()

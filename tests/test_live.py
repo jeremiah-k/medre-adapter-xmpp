@@ -20,9 +20,9 @@ async def test_native_room_ingress_and_direct_egress():
     from slixmpp.plugins.xep_0004.stanza import Form
     from medre.core.contracts.adapter import AdapterContext
     from medre.core.rendering.renderer import RenderingResult
-    from medre_adapter_xmpp.adapter import XMPPAdapter
-    from medre_adapter_xmpp.config import XMPPConfig
-    from medre_adapter_xmpp.connection import SlixConnection
+    from medre.adapters.xmpp.adapter import XMPPAdapter
+    from medre.adapters.xmpp.config import XMPPConfig
+    from medre.adapters.xmpp.connection import SlixConnection
 
     settings = json.loads(await asyncio.to_thread(Path(path).read_text))
     room = f"medre-proof-{uuid4().hex}@{settings['muc_domain']}"

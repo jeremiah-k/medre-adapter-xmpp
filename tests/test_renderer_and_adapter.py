@@ -6,9 +6,9 @@ import pytest
 
 from medre.core.contracts.adapter import AdapterPermanentError, AdapterSendError
 from medre.core.rendering.renderer import RenderingContext
-from medre_adapter_xmpp.adapter import XMPPAdapter, CAPABILITIES
-from medre_adapter_xmpp.codec import XMPPCodec
-from medre_adapter_xmpp.renderer import XMPPRenderer
+from medre.adapters.xmpp.adapter import XMPPAdapter, CAPABILITIES
+from medre.adapters.xmpp.codec import XMPPCodec
+from medre.adapters.xmpp.renderer import XMPPRenderer
 from conftest import NOW, rendered, stanza
 
 

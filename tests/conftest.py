@@ -9,8 +9,8 @@ import pytest
 
 from medre.core.contracts.adapter import AdapterContext
 from medre.core.rendering.renderer import RenderingResult
-from medre_adapter_xmpp.codec import CLIENT
-from medre_adapter_xmpp.config import XMPPConfig
+from medre.adapters.xmpp.codec import CLIENT
+from medre.adapters.xmpp.config import XMPPConfig
 
 NOW = datetime(2026, 10, 17, tzinfo=timezone.utc)
 
