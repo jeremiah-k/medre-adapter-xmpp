@@ -5,9 +5,12 @@ from unittest.mock import AsyncMock
 import pytest
 
 from medre.core.contracts.adapter import AdapterPermanentError, AdapterSendError
+from medre.core.planning.capabilities import resolve_adapter_capabilities
 from medre.core.rendering.renderer import RenderingContext
+from medre.core.routing.models import RouteTarget
 from medre.adapters.xmpp.adapter import XMPPAdapter, CAPABILITIES
 from medre.adapters.xmpp.codec import XMPPCodec
+from medre.adapters.xmpp.fake import FakeXMPPAdapter
 from medre.adapters.xmpp.renderer import XMPPRenderer
 from conftest import NOW, rendered, stanza
 
@@ -124,3 +127,15 @@ def test_capabilities_do_not_claim_unimplemented_protocol_features():
     assert not CAPABILITIES.attachments
     assert not CAPABILITIES.identity_encryption
     assert not CAPABILITIES.presence
+
+
+async def test_declared_capabilities_feed_planning_resolution(config):
+    real = XMPPAdapter(config)
+    fake = FakeXMPPAdapter(config.adapter_id, config)
+    assert real._capabilities == CAPABILITIES
+    assert fake._capabilities == CAPABILITIES
+    health = await fake.health_check()
+    resolved = resolve_adapter_capabilities(
+        {config.adapter_id: fake}, RouteTarget(adapter=config.adapter_id)
+    )
+    assert resolved == health.capabilities
