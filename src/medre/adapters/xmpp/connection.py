@@ -45,8 +45,8 @@ class SlixConnection:
         self.client.register_plugin("xep_0199")
         self.ready = asyncio.get_running_loop().create_future()
         self.closed = asyncio.Event()
-        self._handlers: set[asyncio.Task] = set()
-        self._connect_task = None
+        self._handlers: set[asyncio.Task[None]] = set()
+        self._connect_task: Any | None = None
         self.trusted_rooms: frozenset[str] = frozenset()
         self.client.add_event_handler("session_start", self._session_started)
         # A failed SASL mechanism is retryable by Slixmpp; exhaustion is terminal.
@@ -67,7 +67,7 @@ class SlixConnection:
             asyncio.shield(self.ready), self.config.connect_timeout_seconds
         )
 
-    def _connect_done(self, future: asyncio.Future) -> None:
+    def _connect_done(self, future: asyncio.Future[Any]) -> None:
         if (
             not future.cancelled()
             and future.exception() is not None
@@ -79,7 +79,8 @@ class SlixConnection:
         from slixmpp.exceptions import IqError, IqTimeout
 
         task = asyncio.current_task()
-        self._handlers.add(task)
+        if task is not None:
+            self._handlers.add(task)
         try:
             self.client.send_presence()
             for room in self.config.rooms:
@@ -117,7 +118,8 @@ class SlixConnection:
                     AdapterSendError("XMPP room or session setup failed")
                 )
         finally:
-            self._handlers.discard(task)
+            if task is not None:
+                self._handlers.discard(task)
 
     def _failed_auth(self, _event: Any) -> None:
         if not self.ready.done():
