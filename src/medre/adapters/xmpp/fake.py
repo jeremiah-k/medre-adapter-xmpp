@@ -28,7 +28,7 @@ class FakeXMPPAdapter(XMPPAdapter):
                 rooms=("bridge@conference.example.org",),
             )
         )
-        self.delivered_payloads = []
+        self.delivered_payloads: list[RenderingResult] = []
         self._started = False
 
     async def start(self, ctx: AdapterContext) -> None:
@@ -46,14 +46,17 @@ class FakeXMPPAdapter(XMPPAdapter):
         from dataclasses import replace
 
         config = self.config
-        if result.target_channel not in config.rooms + config.peers:
+        target_channel = result.target_channel
+        if target_channel is not None and target_channel not in (
+            config.rooms + config.peers
+        ):
             if (
                 isinstance(result.payload, dict)
                 and result.payload.get("type") == "chat"
             ):
-                config = replace(config, peers=(*config.peers, result.target_channel))
+                config = replace(config, peers=(*config.peers, target_channel))
             else:
-                config = replace(config, rooms=(*config.rooms, result.target_channel))
+                config = replace(config, rooms=(*config.rooms, target_channel))
         validate_payload(result, config)
         if not self._started:
             raise AdapterSendError("XMPP fake is not started")

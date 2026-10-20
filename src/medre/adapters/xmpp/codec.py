@@ -137,12 +137,13 @@ class XMPPCodec:
             if ref_id or native_id
             else "xmpp:" + uuid.uuid4().hex
         )
-        relations = ()
+        relations: tuple[EventRelation, ...] = ()
         reply = stanza.find("{urn:xmpp:reply:0}reply")
+        reply_id = reply.get("id") if reply is not None else None
         if (
-            reply is not None
-            and reply.get("id", "").strip()
-            and len(reply.get("id").encode("utf-8")) <= 1024
+            reply_id is not None
+            and reply_id.strip()
+            and len(reply_id.encode("utf-8")) <= 1024
             and (kind != "groupchat" or conversation in trusted_rooms)
         ):
             relations = (
@@ -150,7 +151,7 @@ class XMPPCodec:
                     relation_type="reply",
                     target_event_id=None,
                     target_native_ref=NativeRef(
-                        self.config.adapter_id, conversation, reply.get("id")
+                        self.config.adapter_id, conversation, reply_id
                     ),
                     key=None,
                     fallback_text=None,

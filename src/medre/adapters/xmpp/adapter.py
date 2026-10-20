@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Callable
-from typing import Any
+from typing import TYPE_CHECKING, cast
 from dataclasses import replace
 
 from medre.core.contracts.adapter import (
@@ -20,6 +20,9 @@ from medre.core.rendering.renderer import RenderingResult
 
 from .codec import InboundStanza, XMPPCodec
 from .config import XMPPConfig, plain_text
+
+if TYPE_CHECKING:
+    from .session import XMPPSession
 
 CAPABILITIES = AdapterCapabilities(
     text=True,
@@ -42,7 +45,7 @@ CAPABILITIES = AdapterCapabilities(
 )
 
 
-def validate_payload(result: RenderingResult, config: XMPPConfig) -> Mapping:
+def validate_payload(result: RenderingResult, config: XMPPConfig) -> Mapping[str, str]:
     """Refuse misaddressed or malformed output before touching a socket."""
     payload = result.payload
     if result.target_adapter != config.adapter_id or not isinstance(payload, Mapping):
@@ -55,12 +58,15 @@ def validate_payload(result: RenderingResult, config: XMPPConfig) -> Mapping:
     if (
         payload.get("to") != result.target_channel
         or payload.get("type") != message_type
+        or not isinstance(body, str)
         or not plain_text(body)
         or not body.strip()
         or len(body.encode("utf-8")) > config.max_text_bytes
     ):
         raise AdapterPermanentError("Invalid rendered XMPP addressing or body")
-    return payload
+    # Validation boundary: to/type equality plus the str body check above
+    # pin the three fields the transport consumes to text.
+    return cast(Mapping[str, str], payload)
 
 
 class XMPPAdapter(AdapterContract):
@@ -68,7 +74,10 @@ class XMPPAdapter(AdapterContract):
     role = AdapterRole.HYBRID
 
     def __init__(
-        self, config: XMPPConfig, *, session_factory: Callable[..., Any] | None = None
+        self,
+        config: XMPPConfig,
+        *,
+        session_factory: Callable[..., XMPPSession] | None = None,
     ) -> None:
         super().__init__()
         self.config = config.validate()
@@ -76,7 +85,7 @@ class XMPPAdapter(AdapterContract):
         self._capabilities = replace(CAPABILITIES, max_text_bytes=config.max_text_bytes)
         self.codec = XMPPCodec(config)
         self.ctx: AdapterContext | None = None
-        self.session = None
+        self.session: XMPPSession | None = None
         self._session_factory = session_factory
 
     async def start(self, ctx: AdapterContext) -> None:
@@ -97,9 +106,12 @@ class XMPPAdapter(AdapterContract):
             raise
 
     async def _receive(self, packet: InboundStanza) -> None:
+        ctx = self.ctx
+        if ctx is None:
+            return
         event = self.codec.decode(
             packet.stanza,
-            timestamp=self.ctx.clock(),
+            timestamp=ctx.clock(),
             trusted_rooms=packet.trusted_rooms,
         )
         if event is not None:

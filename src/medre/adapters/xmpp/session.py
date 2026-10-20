@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable, Awaitable, Mapping
-from typing import Any
+from typing import Protocol
 from .codec import InboundStanza
 
 from medre.core.contracts.adapter import AdapterPermanentError, AdapterSendError
@@ -15,22 +15,40 @@ from .config import XMPPConfig
 _logger = logging.getLogger(__name__)
 
 
+class _SessionConnection(Protocol):
+    """Structural contract for every connection this session owns.
+
+    Native startup binds :class:`SlixConnection`; tests bind lightweight
+    fakes exposing the same four touchpoints.
+    """
+
+    async def open(self) -> None: ...
+
+    async def wait_closed(self) -> None: ...
+
+    async def close(self) -> None: ...
+
+    def send(self, payload: Mapping[str, str]) -> str: ...
+
+
 class XMPPSession:
     def __init__(
         self,
         config: XMPPConfig,
         receive: Callable[[InboundStanza], Awaitable[None]],
         *,
-        connection_factory: Callable[..., Any] | None = None,
+        connection_factory: Callable[..., _SessionConnection] | None = None,
     ) -> None:
         self.config = config
         self.receive = receive
         self._connection_factory = connection_factory
-        self._connection = None
-        self._runner = None
-        self._worker = None
-        self._ready = None
-        self._queue = asyncio.Queue(maxsize=config.inbound_queue_size)
+        self._connection: _SessionConnection | None = None
+        self._runner: asyncio.Task[None] | None = None
+        self._worker: asyncio.Task[None] | None = None
+        self._ready: asyncio.Future[None] | None = None
+        self._queue: asyncio.Queue[InboundStanza] = asyncio.Queue(
+            maxsize=config.inbound_queue_size
+        )
         self.state = "unknown"
         self._accepting = False
         self.dropped_inbound = 0
@@ -84,18 +102,18 @@ class XMPPSession:
 
         factory = self._connection_factory or SlixConnection
         while True:
-            connection = None
+            connection: _SessionConnection | None = None
             try:
                 connection = factory(self.config, self._enqueue)
                 self._connection = connection
                 await connection.open()
                 self.state = "healthy"
-                if not self._ready.done():
+                if self._ready is not None and not self._ready.done():
                     self._ready.set_result(None)
                 await connection.wait_closed()
             except AdapterPermanentError:
                 self.state = "failed"
-                if not self._ready.done():
+                if self._ready is not None and not self._ready.done():
                     self._ready.set_exception(
                         AdapterPermanentError(
                             "XMPP authentication or configuration requires attention"

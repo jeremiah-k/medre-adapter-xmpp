@@ -120,6 +120,8 @@ class XMPPConfig:
 
     def message_type(self, conversation: str | None) -> str:
         """Select a destination only from the explicitly configured conversations."""
+        if not isinstance(conversation, str):
+            raise ValueError("Destination is not in the configured XMPP rooms or peers")
         bare_jid(conversation)
         if conversation in self.rooms:
             return "groupchat"
