@@ -14,6 +14,7 @@ class DummyClient:
     def __init__(self, *args):
         self.handlers = {}
         self.plugin = {
+            "xep_0115": SimpleNamespace(_process_caps=AsyncMock()),
             "xep_0045": SimpleNamespace(join_muc_wait=AsyncMock()),
             "xep_0030": SimpleNamespace(
                 get_info=AsyncMock(return_value={"disco_info": {"features": []}})
@@ -26,6 +27,10 @@ class DummyClient:
 
     def add_event_handler(self, key, callback):
         self.handlers[key] = callback
+
+    def del_event_handler(self, key, callback):
+        if self.handlers.get(key) == callback:
+            del self.handlers[key]
 
     def send_presence(self):
         pass

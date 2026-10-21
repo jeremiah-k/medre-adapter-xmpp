@@ -116,3 +116,34 @@ async def test_inbound_sdk_callback_copies_stanzas_before_queueing(config):
     message["body"] = "mutated"
     assert received[0].stanza.find("{jabber:client}body").text == "original"
     await connection.close()
+
+
+async def test_close_reaps_pending_entity_capability_discovery(config):
+    connection = SlixConnection(config, lambda _: None)
+    client = connection.client
+    client.init_plugins()
+    entered = asyncio.Event()
+    pending = []
+
+    async def lookup(_presence, _version):
+        pending.append(asyncio.current_task())
+        entered.set()
+        await asyncio.Future()
+
+    client.plugin["xep_0115"]._process_caps_wrapped = lookup
+    presence = client.make_presence(pfrom="peer@example.test/client")
+    presence["caps"]["hash"] = "sha-1"
+    presence["caps"]["ver"] = "test-capabilities"
+    client.event("entity_caps", presence)
+    try:
+        await asyncio.wait_for(entered.wait(), 1)
+        await connection.close()
+        assert pending[0].cancelled()
+        assert not connection._handlers
+        # A previously scheduled callback cannot begin discovery after close.
+        await connection._entity_caps(presence)
+        assert len(pending) == 1
+    finally:
+        for task in pending:
+            task.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)

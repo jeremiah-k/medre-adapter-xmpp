@@ -46,6 +46,12 @@ class SlixConnection:
         self.ready = asyncio.get_running_loop().create_future()
         self.closed = asyncio.Event()
         self._handlers: set[asyncio.Task[None]] = set()
+        self._closing = False
+        # Slixmpp schedules XEP-0115 discovery without retaining its tasks.
+        # Own that callback just like session setup so disconnect can reap it.
+        caps = self.client.plugin["xep_0115"]
+        self.client.del_event_handler("entity_caps", caps._process_caps)
+        self.client.add_event_handler("entity_caps", self._entity_caps)
         self._connect_task: Any | None = None
         self.trusted_rooms: frozenset[str] = frozenset()
         self.client.add_event_handler("session_start", self._session_started)
@@ -75,7 +81,21 @@ class SlixConnection:
         ):
             self.ready.set_exception(AdapterSendError("XMPP connection failed"))
 
+    async def _entity_caps(self, presence: Any) -> None:
+        if self._closing:
+            return
+        task = asyncio.current_task()
+        if task is not None:
+            self._handlers.add(task)
+        try:
+            await self.client.plugin["xep_0115"]._process_caps(presence)
+        finally:
+            if task is not None:
+                self._handlers.discard(task)
+
     async def _session_started(self, _event: Any) -> None:
+        if self._closing:
+            return
         from slixmpp.exceptions import IqError, IqTimeout
 
         task = asyncio.current_task()
@@ -172,6 +192,9 @@ class SlixConnection:
         return native_id
 
     async def close(self) -> None:
+        self._closing = True
+        self.client.del_event_handler("entity_caps", self._entity_caps)
+        self.client.del_event_handler("session_start", self._session_started)
         self.client.cancel_connection_attempt()
         self.client.plugin["xep_0199"].disable_keepalive()
         for name in tuple(self.client.scheduled_events):
