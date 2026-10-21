@@ -6,7 +6,7 @@ import asyncio
 import ssl
 import uuid
 from collections.abc import Callable, Mapping
-from typing import Any
+from typing import Any, Literal, cast
 from .config import XMPPConfig
 from .codec import InboundStanza
 
@@ -96,6 +96,7 @@ class SlixConnection:
     async def _session_started(self, _event: Any) -> None:
         if self._closing:
             return
+        from slixmpp import JID
         from slixmpp.exceptions import IqError, IqTimeout
 
         task = asyncio.current_task()
@@ -105,7 +106,7 @@ class SlixConnection:
             self.client.send_presence()
             for room in self.config.rooms:
                 result = await self.client.plugin["xep_0045"].join_muc_wait(
-                    room,
+                    JID(room),
                     self.config.nickname,
                     maxstanzas=0,
                     timeout=self.config.connect_timeout_seconds,
@@ -119,7 +120,7 @@ class SlixConnection:
                 # Servers without discovery support still carry ordinary text.
                 try:
                     info = await self.client.plugin["xep_0030"].get_info(
-                        jid=room,
+                        jid=JID(room),
                         timeout=self.config.connect_timeout_seconds,
                     )
                 except (TimeoutError, IqError, IqTimeout):
@@ -176,8 +177,13 @@ class SlixConnection:
             or self.ready.exception() is not None
         ):
             raise AdapterSendError("XMPP session is not ready")
+        message_type = payload["type"]
+        if message_type not in {"chat", "groupchat"}:
+            raise AdapterSendError("Unsupported XMPP message type")
         message = self.client.make_message(
-            mto=payload["to"], mbody=payload["body"], mtype=payload["type"]
+            mto=payload["to"],
+            mbody=payload["body"],
+            mtype=cast(Literal["chat", "groupchat"], message_type),
         )
         native_id = uuid.uuid4().hex
         message["id"] = native_id
@@ -196,7 +202,11 @@ class SlixConnection:
         self.client.del_event_handler("entity_caps", self._entity_caps)
         self.client.del_event_handler("session_start", self._session_started)
         self.client.cancel_connection_attempt()
-        self.client.plugin["xep_0199"].disable_keepalive()
+        # The pinned SDK omits the return annotation on this public method.
+        disable_keepalive = cast(
+            Callable[[], None], self.client.plugin["xep_0199"].disable_keepalive
+        )
+        disable_keepalive()
         for name in tuple(self.client.scheduled_events):
             self.client.cancel_schedule(name)
         for task in tuple(self._handlers):

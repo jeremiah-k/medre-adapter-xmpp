@@ -147,3 +147,15 @@ async def test_close_reaps_pending_entity_capability_discovery(config):
         for task in pending:
             task.cancel()
         await asyncio.gather(*pending, return_exceptions=True)
+
+
+async def test_native_send_rejects_non_messaging_stanza_types(config):
+    connection = SlixConnection(config, lambda _: None)
+    connection.ready.set_result(None)
+    connection.client.make_message = Mock()
+    try:
+        with pytest.raises(AdapterSendError, match="Unsupported XMPP message type"):
+            connection.send({"to": config.rooms[0], "body": "text", "type": "error"})
+        connection.client.make_message.assert_not_called()
+    finally:
+        await connection.close()
