@@ -129,3 +129,10 @@ server using a dedicated test CA, `SSL_CERT_FILE` can select that trusted CA;
 certificate validation and hostname checks stay enabled. Run the adapter suite
 with `-m live` after installing its SDK. Credentials, private keys and runtime
 state stay outside Git. The offline CI jobs do not start an authenticated server.
+
+### Discovery cleanup
+
+Stopping an XMPP connection cancels and awaits its pending entity-capability
+lookups as well as session setup and outgoing filters. Capability discovery
+remains enabled while connected; unanswered peer queries cannot retain
+background callbacks after shutdown.
