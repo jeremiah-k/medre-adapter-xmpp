@@ -28,6 +28,21 @@ MUTATIONS = frozenset(
 )
 
 
+def room_stanza_id(stanza: Element, room: str) -> str | None:
+    """Accept only an unambiguous ID assigned by the discovered room itself."""
+    found = None
+    for entry in stanza.findall("{urn:xmpp:sid:0}stanza-id"):
+        if entry.get("by") != room:
+            continue
+        value = entry.get("id", "")
+        if not value.strip() or len(value.encode("utf-8")) > 1024:
+            return None
+        if found is not None and found != value:
+            return None
+        found = value
+    return found
+
+
 @dataclass(frozen=True, slots=True)
 class InboundStanza:
     """Native XML and the discovery evidence of its receiving connection."""
@@ -112,14 +127,12 @@ class XMPPCodec:
         # latter in metadata for diagnostics and older servers without SIDs.
         room_id = None
         if kind == "groupchat" and conversation in trusted_rooms:
-            for entry in stanza.findall("{urn:xmpp:sid:0}stanza-id"):
-                candidate = entry.get("id", "")
-                if entry.get("by") == conversation and candidate.strip():
-                    if len(candidate.encode("utf-8")) > 1024:
-                        return None
-                    if room_id is not None and room_id != candidate:
-                        return None  # Contradictory room-issued IDs.
-                    room_id = candidate
+            room_id = room_stanza_id(stanza, conversation)
+            if room_id is None and any(
+                entry.get("by") == conversation
+                for entry in stanza.findall("{urn:xmpp:sid:0}stanza-id")
+            ):
+                return None
         # A sender-generated groupchat id is not in the MUC reply namespace;
         # never register it as though a room service had assigned it.
         ref_id = room_id if kind == "groupchat" else native_id

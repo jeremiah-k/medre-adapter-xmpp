@@ -69,6 +69,18 @@ plugin and uses the SDK's immediate `send_raw` transport seam after SDK stanza
 serialization. Any future encryption or stream-management support MUST revisit
 this handoff contract rather than bypass its filters.
 
+For MUC sends, the adapter MUST NOT expose its client-generated message ID as
+though the room had assigned it. It MAY await a matching own echo for at most
+five seconds, with at most 128 pending correlations per connection. Correlation
+requires the configured occupant, an unchanged origin ID and body, no delayed
+history, and one unambiguous stanza ID assigned by a room advertising XEP-0359.
+Direct sends use their own origin-ID namespace. Missing, conflicting, timed-out
+or disconnected echo evidence MUST leave the native reference absent; after a
+successful transport write, missing correlation alone MUST NOT trigger a failed
+handoff or retry. Cancellation and connection shutdown MUST release pending
+correlation ownership. Room echoes MUST remain excluded from canonical ingress.
+A correlated room echo does not establish recipient delivery or read state.
+
 The configured `max_text_bytes` budget MUST be reported consistently to core
 planning and health checks for real and fake adapter instances.
 
