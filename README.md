@@ -63,7 +63,7 @@ or native transport delivery.
 
 ## Behavior
 
-- Relay plain text with MEDRE's shared attribution formatter. `relay_prefix`
+- Relay text with MEDRE's shared attribution formatter. `relay_prefix`
   defaults to `[{origin_label}] {sender}:` followed by a space; an empty string suppresses it.
 - Join every configured MUC room before readiness, request zero history, and
   rejoin after disconnect. Authentication rejection requires operator action.
@@ -71,12 +71,14 @@ or native transport delivery.
   and unsupported edit/retract/reaction compatibility bodies.
 - Bridge native replies with destination-scoped references and readable quote
   fallback; use textual relation fallback when the native target is unavailable.
+- Preserve bounded XEP-0393 presentation and explicit unstyled content; retain
+  plain text when semantic styles cannot be represented safely.
 - Bound pending inbound work and reject oversized output without silent clipping.
 - Correlate own MUC echoes with trusted room-issued IDs, with bounded waits;
   missing correlation does not turn a completed transport write into a retry.
 - Report local TLS transport writes separately from recipient delivery/read state.
 
-This live bridge does not recover offline messages or room archives. Rich text,
+This live bridge does not recover offline messages or room archives. XHTML,
 attachments, presence, typing forwarding, read receipts, native mutations,
 OMEMO and puppeting are not implemented or advertised. The
 [protocol design](docs/protocol-design.md) explains the standards and seams for
