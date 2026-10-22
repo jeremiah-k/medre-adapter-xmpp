@@ -48,6 +48,7 @@ class SlixConnection:
         self.client.register_plugin("xep_0045")
         self.client.register_plugin("xep_0199")
         self.client.plugin["xep_0030"].add_feature("urn:xmpp:reply:0")
+        self.client.plugin["xep_0030"].add_feature("urn:xmpp:styling:0")
         self.ready = asyncio.get_running_loop().create_future()
         self.closed = asyncio.Event()
         self._handlers: set[asyncio.Task[None]] = set()
@@ -221,6 +222,8 @@ class SlixConnection:
             mbody=payload["body"],
             mtype=cast(Literal["chat", "groupchat"], message_type),
         )
+        if payload.get("unstyled") == "true":
+            SubElement(message.xml, "{urn:xmpp:styling:0}unstyled")
         native_id = uuid.uuid4().hex
         message["id"] = native_id
         SubElement(message.xml, "{urn:xmpp:sid:0}origin-id", {"id": native_id})

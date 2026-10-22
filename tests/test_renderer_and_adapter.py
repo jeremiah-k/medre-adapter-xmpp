@@ -29,6 +29,7 @@ async def test_renderer_retains_plain_text_and_exact_destination(config):
     )
     assert result.payload == {
         "body": "Hello <XMPP> & friends",
+        "unstyled": "true",
         "to": config.rooms[0],
         "type": "groupchat",
     }

@@ -122,3 +122,24 @@ correlation and truthful evidence levels. Neither is advertised here. Presence,
 attachments, message mutations, MAM, OMEMO, rich text and puppeting likewise
 remain unadvertised. Capability declarations describe implemented adapter
 behavior, not everything available in the XMPP ecosystem.
+
+## Message styling
+
+Inbound presentation MUST follow [XEP-0393](https://xmpp.org/extensions/xep-0393.html).
+The codec MUST parse blocks before inline spans, keep code opaque, retain literal
+directives in the plain body, and use original Unicode code-point offsets.
+Nested quote levels sharing the same original range MAY share one semantic span.
+The `urn:xmpp:styling:0` unstyled control MUST suppress presentation parsing.
+Reply fallback removal MUST precede span calculation. Parsing MUST bound body
+size, span count, and nesting; unsupported metadata MUST leave plain text intact.
+
+Outbound semantic inline styles MAY use XEP-0393 directives only when parsing the
+complete result reproduces the intended spans. Native directives MUST NOT be
+duplicated. Unsupported links/blocks, conflicting delimiter boundaries,
+unintended prefix styling, or formatting overhead beyond the destination budget
+MUST retain the plain body and emit an unstyled control. Directives MUST NOT be
+inserted invisibly or interpreted through Markdown. Native block directives MAY
+be retained when already represented by the canonical body. Added reply quotes
+MUST NOT introduce unintended source styles. The adapter MUST advertise
+`urn:xmpp:styling:0` through service discovery and serialize the unstyled control
+as a separate XML element, never as body markup.

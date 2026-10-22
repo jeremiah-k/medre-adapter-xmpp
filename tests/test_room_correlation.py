@@ -154,3 +154,20 @@ async def test_capacity_exhaustion_does_not_block_or_invent_failed_handoff(
     instance._message(SimpleNamespace(xml=echo(data[0], config)))
     assert await first == "room-id"
     assert not instance._echoes
+
+
+async def test_unstyled_control_is_serialized_separately_from_literal_body(
+    config, ready
+):
+    instance, _ = ready
+    request = {
+        "to": config.peers[0],
+        "type": "chat",
+        "body": "*literal*",
+        "unstyled": "true",
+    }
+    assert await instance.send(request)
+    wire = instance.client.transport.write.call_args.args[0]
+    message = fromstring(b"<stream xmlns='jabber:client'>" + wire + b"</stream>")[0]
+    assert message.find(f"{{{CLIENT}}}body").text == "*literal*"
+    assert message.find("{urn:xmpp:styling:0}unstyled") is not None

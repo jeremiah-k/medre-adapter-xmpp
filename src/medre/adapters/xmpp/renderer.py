@@ -7,6 +7,7 @@ from typing import Any
 
 from medre.adapters.metadata import project_source_fields
 from medre.core.events.canonical import CanonicalEvent
+from medre.core.events.text import StyledText, TextSpan
 from medre.core.rendering.attribution import (
     build_relay_attribution,
     format_relay_prefix,
@@ -14,6 +15,7 @@ from medre.core.rendering.attribution import (
 from medre.core.rendering.relations import degrade_relations_inline
 from medre.core.rendering.renderer import RenderingContext, RenderingResult
 
+from .styling import from_text, to_text
 from .config import XMPPConfig, plain_text
 
 
@@ -73,8 +75,10 @@ class XMPPRenderer:
         fallback = ctx.delivery_strategy == "fallback_text" or (
             bool(reply_relations) and reply_id is None
         )
+        value = StyledText.from_payload(event.payload)
         if fallback:
             text = degrade_relations_inline(event, text)
+            value = StyledText(text)
         if not text.strip():
             raise ValueError("XMPP message body must not be empty")
         attr_config = self.source_attribution.get(event.source_adapter)
@@ -94,7 +98,21 @@ class XMPPRenderer:
         prefix = format_relay_prefix(config.relay_prefix, attr)
         if prefix.formatting_error:
             raise ValueError("Invalid XMPP relay prefix template")
-        text = prefix.rendered_prefix + text
+        plain = prefix.rendered_prefix + value.body
+        offset = len(prefix.rendered_prefix)
+        try:
+            prefixed = StyledText(
+                plain,
+                tuple(
+                    TextSpan(
+                        span.start + offset, span.end + offset, span.style, span.href
+                    )
+                    for span in value.spans
+                ),
+            )
+        except ValueError:
+            prefixed = StyledText(plain)
+        text, unstyled = to_text(prefixed)
         if not text.strip() or not plain_text(text):
             raise ValueError("XMPP message requires non-empty XML text")
         # Fail rather than silently cut an identity prefix or message content.
@@ -104,12 +122,18 @@ class XMPPRenderer:
         if len(text.encode("utf-8")) > min(limits) or (
             ctx.max_text_chars is not None and len(text) > ctx.max_text_chars
         ):
+            text, unstyled = plain, True
+        if len(text.encode("utf-8")) > min(limits) or (
+            ctx.max_text_chars is not None and len(text) > ctx.max_text_chars
+        ):
             raise ValueError("Rendered XMPP text exceeds the destination budget")
         payload: dict[str, object] = {
             "body": text,
             "to": ctx.target_channel,
             "type": message_type,
         }
+        if unstyled:
+            payload["unstyled"] = "true"
         if reply_id is not None:
             payload["reply_id"] = reply_id
             original = reply_relations[0].fallback_text
@@ -122,6 +146,30 @@ class XMPPRenderer:
             if len(quoted.encode("utf-8")) <= min(limits) and (
                 ctx.max_text_chars is None or len(quoted) <= ctx.max_text_chars
             ):
+                # A native reply quote is presentation too. Preserve body
+                # styling only if the quote introduces exactly one quote span.
+                if not unstyled:
+                    wire = from_text(text)
+                    try:
+                        expected = StyledText(
+                            quoted,
+                            (TextSpan(0, len(quote) - 1, "quote"),)
+                            + tuple(
+                                TextSpan(
+                                    span.start + len(quote),
+                                    span.end + len(quote),
+                                    span.style,
+                                    span.href,
+                                )
+                                for span in wire.spans
+                            ),
+                        )
+                        unstyled = from_text(quoted) != expected
+                    except ValueError:
+                        unstyled = True
+                if unstyled:
+                    quoted = quote + plain
+                    payload["unstyled"] = "true"
                 payload["body"] = quoted
                 payload["reply_fallback"] = quote
         return RenderingResult(
@@ -129,7 +177,12 @@ class XMPPRenderer:
             target_adapter=ctx.target_adapter,
             target_channel=ctx.target_channel,
             payload=payload,
-            metadata={"xmpp": {"format": "plain", "attribution": "relay"}},
+            metadata={
+                "xmpp": {
+                    "format": "plain" if unstyled else "xep-0393",
+                    "attribution": "relay",
+                }
+            },
             fallback_applied=(
                 (
                     "strategy_fallback_text"

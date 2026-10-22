@@ -12,6 +12,7 @@ from xml.etree.ElementTree import Element
 from medre.core.events.canonical import CanonicalEvent, EventRelation, NativeRef
 from medre.core.events.metadata import EventMetadata, NativeMetadata, TransportMetadata
 
+from .styling import NAMESPACE, from_text
 from .config import XMPPConfig, bare_jid, plain_text
 
 CLIENT = "jabber:client"
@@ -230,7 +231,9 @@ class XMPPCodec:
             parent_event_id=None,
             lineage=(),
             relations=relations,
-            payload={"body": text},
+            payload=from_text(
+                text, unstyled=stanza.find(f"{{{NAMESPACE}}}unstyled") is not None
+            ).to_payload(),
             source_native_ref=(
                 NativeRef(self.config.adapter_id, conversation, ref_id)
                 if ref_id

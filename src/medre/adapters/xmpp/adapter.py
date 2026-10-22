@@ -54,8 +54,10 @@ def validate_payload(result: RenderingResult, config: XMPPConfig) -> Mapping[str
         message_type = config.message_type(result.target_channel)
     except ValueError:
         raise AdapterPermanentError("Unconfigured XMPP destination") from None
-    if set(payload) - {"to", "type", "body", "reply_id", "reply_fallback"}:
+    if set(payload) - {"to", "type", "body", "reply_id", "reply_fallback", "unstyled"}:
         raise AdapterPermanentError("Unknown rendered XMPP payload fields")
+    if "unstyled" in payload and payload["unstyled"] != "true":
+        raise AdapterPermanentError("Invalid XMPP styling control")
     reply = payload.get("reply_id")
     quote = payload.get("reply_fallback")
     if reply is not None and (
