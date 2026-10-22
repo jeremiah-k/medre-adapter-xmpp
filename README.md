@@ -69,8 +69,11 @@ or native transport delivery.
   rejoin after disconnect. Authentication rejection requires operator action.
 - Exclude self echoes, delayed history, bodyless typing/receipt notifications,
   and unsupported edit/retract/reaction compatibility bodies.
-- Retain inbound reply references and use textual fallback for outbound replies.
+- Bridge native replies with destination-scoped references and readable quote
+  fallback; use textual relation fallback when the native target is unavailable.
 - Bound pending inbound work and reject oversized output without silent clipping.
+- Correlate own MUC echoes with trusted room-issued IDs, with bounded waits;
+  missing correlation does not turn a completed transport write into a retry.
 - Report local TLS transport writes separately from recipient delivery/read state.
 
 This live bridge does not recover offline messages or room archives. Rich text,

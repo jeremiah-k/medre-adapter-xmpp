@@ -54,7 +54,25 @@ class XMPPRenderer:
         text = event.payload.get("body", event.payload.get("text", ""))
         if not isinstance(text, str):
             raise ValueError("XMPP message body must be text")
-        fallback = ctx.delivery_strategy == "fallback_text"
+        reply_relations = [
+            rel for rel in event.relations if rel.relation_type == "reply"
+        ]
+        reply_id = None
+        if ctx.delivery_strategy == "direct" and len(reply_relations) == 1:
+            ref = reply_relations[0].target_native_ref
+            if (
+                ref is not None
+                and ref.adapter == ctx.target_adapter
+                and ref.native_channel_id == ctx.target_channel
+                and isinstance(ref.native_message_id, str)
+                and ref.native_message_id.strip()
+                and plain_text(ref.native_message_id)
+                and len(ref.native_message_id.encode("utf-8")) <= 1024
+            ):
+                reply_id = ref.native_message_id
+        fallback = ctx.delivery_strategy == "fallback_text" or (
+            bool(reply_relations) and reply_id is None
+        )
         if fallback:
             text = degrade_relations_inline(event, text)
         if not text.strip():
@@ -87,13 +105,40 @@ class XMPPRenderer:
             ctx.max_text_chars is not None and len(text) > ctx.max_text_chars
         ):
             raise ValueError("Rendered XMPP text exceeds the destination budget")
+        payload: dict[str, object] = {
+            "body": text,
+            "to": ctx.target_channel,
+            "type": message_type,
+        }
+        if reply_id is not None:
+            payload["reply_id"] = reply_id
+            original = reply_relations[0].fallback_text
+            quote = (
+                "\n".join("> " + line for line in original.splitlines()) + "\n"
+                if original
+                else "> Reply\n"
+            )
+            quoted = quote + text
+            if len(quoted.encode("utf-8")) <= min(limits) and (
+                ctx.max_text_chars is None or len(quoted) <= ctx.max_text_chars
+            ):
+                payload["body"] = quoted
+                payload["reply_fallback"] = quote
         return RenderingResult(
             event_id=event.event_id,
             target_adapter=ctx.target_adapter,
             target_channel=ctx.target_channel,
-            payload={"body": text, "to": ctx.target_channel, "type": message_type},
+            payload=payload,
             metadata={"xmpp": {"format": "plain", "attribution": "relay"}},
-            fallback_applied="strategy_fallback_text" if fallback else None,
+            fallback_applied=(
+                (
+                    "strategy_fallback_text"
+                    if ctx.delivery_strategy == "fallback_text"
+                    else "relation_reply"
+                )
+                if fallback
+                else None
+            ),
         )
 
 

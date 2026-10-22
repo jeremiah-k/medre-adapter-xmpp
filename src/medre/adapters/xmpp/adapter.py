@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 CAPABILITIES = AdapterCapabilities(
     text=True,
     title=False,
-    replies="fallback",
+    replies="native",
     threads="fallback",
     reactions="unsupported",
     edits="unsupported",
@@ -54,7 +54,29 @@ def validate_payload(result: RenderingResult, config: XMPPConfig) -> Mapping[str
         message_type = config.message_type(result.target_channel)
     except ValueError:
         raise AdapterPermanentError("Unconfigured XMPP destination") from None
+    if set(payload) - {"to", "type", "body", "reply_id", "reply_fallback"}:
+        raise AdapterPermanentError("Unknown rendered XMPP payload fields")
+    reply = payload.get("reply_id")
+    quote = payload.get("reply_fallback")
+    if reply is not None and (
+        not isinstance(reply, str)
+        or not reply.strip()
+        or not plain_text(reply)
+        or len(reply.encode("utf-8")) > 1024
+    ):
+        raise AdapterPermanentError("Invalid rendered XMPP reply reference")
+    if "reply_id" in payload and reply is None:
+        raise AdapterPermanentError("Invalid rendered XMPP reply reference")
     body = payload.get("body")
+    if "reply_fallback" in payload and (
+        reply is None
+        or not isinstance(quote, str)
+        or not quote
+        or not isinstance(body, str)
+        or not body.startswith(quote)
+        or len(quote) >= len(body)
+    ):
+        raise AdapterPermanentError("Invalid rendered XMPP reply fallback")
     if (
         payload.get("to") != result.target_channel
         or payload.get("type") != message_type

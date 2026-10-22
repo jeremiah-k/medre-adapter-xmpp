@@ -162,3 +162,33 @@ async def test_native_send_rejects_non_messaging_stanza_types(config):
         connection.client.make_message.assert_not_called()
     finally:
         await connection.close()
+
+
+async def test_reply_xml_escapes_ids_and_marks_unicode_quote_offsets(config):
+    connection = SlixConnection(config, lambda _: None)
+    connection.ready.set_result(None)
+    transport = Mock()
+    connection.client.transport = transport
+    quote = "> café 🦉\n"
+    try:
+        native_id = await connection.send(
+            {
+                "to": config.peers[0],
+                "type": "chat",
+                "body": quote + "answer",
+                "reply_id": 'parent<&"',
+                "reply_fallback": quote,
+            }
+        )
+        written = transport.write.call_args.args[0]
+        root = fromstring(b"<stream xmlns='jabber:client'>" + written + b"</stream>")[0]
+        assert root.find("{urn:xmpp:reply:0}reply").get("id") == 'parent<&"'
+        region = root.find("{urn:xmpp:fallback:0}fallback/{urn:xmpp:fallback:0}body")
+        assert int(region.get("end")) == len(quote)
+        assert (
+            root.find("{jabber:client}body").text[int(region.get("end")) :] == "answer"
+        )
+        assert root.get("id") == native_id
+    finally:
+        connection.client.transport = None
+        await connection.close()

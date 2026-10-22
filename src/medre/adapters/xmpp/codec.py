@@ -43,6 +43,43 @@ def room_stanza_id(stanza: Element, room: str) -> str | None:
     return found
 
 
+def reply_fallback(stanza: Element, body: Element, text: str) -> tuple[str, str | None]:
+    """Remove one valid reply fallback range using Unicode code-point offsets."""
+    indicators = [
+        entry
+        for entry in stanza.findall("{urn:xmpp:fallback:0}fallback")
+        if entry.get("for") == "urn:xmpp:reply:0"
+    ]
+    if len(indicators) != 1:
+        return text, None
+    ranges = indicators[0].findall("{urn:xmpp:fallback:0}body")
+    if not list(indicators[0]):
+        return "", text
+    if len(ranges) != 1:
+        return text, None
+    entry = ranges[0]
+    language = "{http://www.w3.org/XML/1998/namespace}lang"
+    if entry.get(language) != body.get(language):
+        return text, None
+    if "start" not in entry.attrib and "end" not in entry.attrib:
+        return "", text
+    start, end = entry.get("start", ""), entry.get("end", "")
+    if (
+        not start.isascii()
+        or not start.isdecimal()
+        or not end.isascii()
+        or not end.isdecimal()
+    ):
+        return text, None
+    if len(start) > 10 or len(end) > 10:
+        return text, None
+    first, last = int(start), int(end)
+    if not 0 <= first < last <= len(text):
+        return text, None
+    quote = "\n".join(line.removeprefix("> ") for line in text[first:last].splitlines())
+    return text[:first] + text[last:], quote or None
+
+
 @dataclass(frozen=True, slots=True)
 class InboundStanza:
     """Native XML and the discovery evidence of its receiving connection."""
@@ -135,7 +172,16 @@ class XMPPCodec:
                 return None
         # A sender-generated groupchat id is not in the MUC reply namespace;
         # never register it as though a room service had assigned it.
-        ref_id = room_id if kind == "groupchat" else native_id
+        origins = stanza.findall("{urn:xmpp:sid:0}origin-id")
+        origin_id = origins[0].get("id", "") if len(origins) == 1 else None
+        if origins and (
+            len(origins) != 1
+            or not origin_id
+            or not origin_id.strip()
+            or len(origin_id.encode("utf-8")) > 1024
+        ):
+            return None
+        ref_id = room_id if kind == "groupchat" else (origin_id or native_id)
         scope = json.dumps(
             [
                 self.config.adapter_id,
@@ -151,14 +197,17 @@ class XMPPCodec:
             else "xmpp:" + uuid.uuid4().hex
         )
         relations: tuple[EventRelation, ...] = ()
-        reply = stanza.find("{urn:xmpp:reply:0}reply")
-        reply_id = reply.get("id") if reply is not None else None
+        replies = stanza.findall("{urn:xmpp:reply:0}reply")
+        reply_id = replies[0].get("id") if len(replies) == 1 else None
         if (
             reply_id is not None
             and reply_id.strip()
             and len(reply_id.encode("utf-8")) <= 1024
             and (kind != "groupchat" or conversation in trusted_rooms)
         ):
+            text, quoted = reply_fallback(stanza, body, text)
+            if not text.strip():
+                return None
             relations = (
                 EventRelation(
                     relation_type="reply",
@@ -167,7 +216,7 @@ class XMPPCodec:
                         self.config.adapter_id, conversation, reply_id
                     ),
                     key=None,
-                    fallback_text=None,
+                    fallback_text=quoted,
                 ),
             )
         return CanonicalEvent(
@@ -197,6 +246,7 @@ class XMPPCodec:
                             "nickname": nickname or None,
                             "message_type": kind,
                             "stanza_id": native_id,
+                            "origin_id": origin_id,
                             "room_stanza_id": room_id,
                         }
                     }

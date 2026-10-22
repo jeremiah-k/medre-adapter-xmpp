@@ -17,7 +17,8 @@ class DummyClient:
             "xep_0115": SimpleNamespace(_process_caps=AsyncMock()),
             "xep_0045": SimpleNamespace(join_muc_wait=AsyncMock()),
             "xep_0030": SimpleNamespace(
-                get_info=AsyncMock(return_value={"disco_info": {"features": []}})
+                add_feature=lambda value: None,
+                get_info=AsyncMock(return_value={"disco_info": {"features": []}}),
             ),
             "xep_0199": SimpleNamespace(enable_keepalive=lambda **kw: None),
         }

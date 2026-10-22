@@ -43,7 +43,11 @@ checkpoints; delayed direct messages are deliberately excluded as well.
 Correction, retraction, fastening and reaction stanzas MUST NOT be reinterpreted
 as fresh text merely because they carry a compatibility body. XEP-0461 reply
 references MAY become canonical reply relations without inventing target-event
-identity or mutation ownership. Outbound replies use core's textual fallback.
+identity or mutation ownership. Outbound native replies MUST use a reference
+bound to the exact destination adapter and conversation. Unknown, contradictory
+or incompatible bindings MUST retain readable text fallback. A reply MUST NOT
+be represented as a full threaded conversation. Direct message references MUST
+prefer an unambiguous XEP-0359 origin ID over a server-rewritten stanza ID.
 
 The session MUST bound pending inbound work and report queue overflow and
 admission failures through counters and logs. It MUST NOT acknowledge durable
@@ -57,7 +61,12 @@ source projection, attribution formatter and relation fallback. It MUST preserve
 explicit empty origin labels, validate the final text budget after attribution,
 and reject oversized output rather than silently truncating it. Slixmpp MUST
 serialize XML; body content is plain text even when it contains markup-like
-characters. No XHTML, Markdown, source impersonation or puppeting is performed.
+characters. XEP-0461 replies MAY include an XEP-0428 quote fallback, bounded by
+the final text budget. The user message MUST NOT be clipped to fit a quote.
+Incoming supported fallback ranges MUST use Unicode code-point offsets, preserve
+quoted context separately from the answer, and ignore malformed ranges without
+removing message text. Fallback-only bodies MUST NOT become fresh messages.
+No XHTML, Markdown, source impersonation or puppeting is performed.
 
 Native delivery MUST validate the target adapter, configured destination,
 message type, body and budget before writing. A successful handoff means XML
