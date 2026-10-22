@@ -113,8 +113,27 @@ worker. Queued work is not durable and MUST NOT survive a session restart.
 
 XEP-0085 defines chat state notifications, including typing. Those events are
 ephemeral and MUST NOT be encoded as chat messages or durable delivery lifecycle
-events. The adapter ignores bodyless notifications until MEDRE provides a
-protocol-neutral ephemeral activity seam with expiry and routing policy.
+events. The adapter MUST declare the typing capability and use MEDRE's optional
+source-bound activity sink only when the route explicitly opts in. Live
+configured composing states create finite actor leases; active, paused and
+inactive release the actor. Direct gone releases activity; groupchat gone MUST
+be ignored. Delayed, threaded, self, ambiguous and unconfigured notifications
+MUST NOT grant activity. Replacement connections MUST NOT inherit chat-state
+negotiation or outgoing state.
+
+Bodyless states MUST use an independently bounded coalescing mailbox rather
+than consume ordinary message-ingress capacity. Outgoing state uses the relay
+identity. Direct peers MUST first demonstrate chat-state support through a live
+valid state; MUC sends follow XEP-0085 groupchat rules. Identical standalone
+composing notifications MUST NOT repeat. Content sent during a tracked session
+MUST include active so subsequent composing represents a valid transition.
+
+XMPP has no Matrix-style server-managed composing timeout. A lost stop or a
+long uninterrupted composition can differ from the host's 30-second freshness
+projection. Local writes MUST NOT be presented as receipt-backed delivery.
+State caches are bounded to 256 conversations per connection; if all entries
+are composing, another conversation's state is refused until an entry becomes
+inactive. Shutdown is best effort and MUST NOT persist activity.
 
 XEP-0184 delivery receipts and XEP-0333 displayed markers are distinct from
 MEDRE's local handoff receipts. Their implementation requires attempt/native-ID

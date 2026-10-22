@@ -73,13 +73,15 @@ or native transport delivery.
   fallback; use textual relation fallback when the native target is unavailable.
 - Preserve bounded XEP-0393 presentation and explicit unstyled content; retain
   plain text when semantic styles cannot be represented safely.
+- Forward opt-in transient typing through XEP-0085, with negotiated direct
+  peers and configured MUC rooms; activity stays outside message history.
 - Bound pending inbound work and reject oversized output without silent clipping.
 - Correlate own MUC echoes with trusted room-issued IDs, with bounded waits;
   missing correlation does not turn a completed transport write into a retry.
 - Report local TLS transport writes separately from recipient delivery/read state.
 
 This live bridge does not recover offline messages or room archives. XHTML,
-attachments, presence, typing forwarding, read receipts, native mutations,
+attachments, presence, read receipts, native mutations,
 OMEMO and puppeting are not implemented or advertised. The
 [protocol design](docs/protocol-design.md) explains the standards and seams for
 those extensions. The [adapter contract](docs/spec/adapter.md) defines behavior;

@@ -5,6 +5,8 @@ import pytest
 
 from medre.core.contracts.adapter import AdapterPermanentError, AdapterSendError
 from medre.adapters.xmpp.session import XMPPSession
+from medre.adapters.xmpp.codec import InboundStanza
+from conftest import stanza
 
 
 class Connection:
@@ -143,16 +145,16 @@ async def test_ingress_queue_bounds_pending_work_and_counts_rejected_admission(c
         replace(config, inbound_queue_size=1), receive, connection_factory=Connection
     )
     await session.start()
-    session._enqueue("first")
+    session._enqueue(InboundStanza(stanza(body="first")))
     await asyncio.wait_for(entered.wait(), 2)
-    session._enqueue("second")
-    session._enqueue("overflow")
+    session._enqueue(InboundStanza(stanza(body="second")))
+    session._enqueue(InboundStanza(stanza(body="overflow")))
     assert session.dropped_inbound == 1
     release.set()
     await asyncio.wait_for(session._queue.join(), 2)
     assert session.failed_inbound == 2
     await session.stop()
-    session._enqueue("after-stop")
+    session._enqueue(InboundStanza(stanza(body="after-stop")))
     assert session._queue.empty()
 
 

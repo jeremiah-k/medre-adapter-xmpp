@@ -10,6 +10,7 @@ from medre.core.contracts.adapter import (
     AdapterInfo,
     AdapterSendError,
 )
+from medre.core.contracts.typing import TypingSignal, TypingUpdate
 from medre.core.events.canonical import CanonicalEvent
 from medre.core.rendering.renderer import RenderingResult
 
@@ -29,6 +30,7 @@ class FakeXMPPAdapter(XMPPAdapter):
             )
         )
         self.delivered_payloads: list[RenderingResult] = []
+        self.typing_updates: list[TypingUpdate] = []
         self._started = False
 
     async def start(self, ctx: AdapterContext) -> None:
@@ -38,6 +40,20 @@ class FakeXMPPAdapter(XMPPAdapter):
 
     async def stop(self, timeout: float = 5.0) -> None:
         self._started = False
+
+    async def send_typing(self, update: TypingUpdate) -> None:
+        """Record bounded desired activity without claiming native delivery."""
+        if not self._started or update.target.adapter_id != self.adapter_id:
+            raise AdapterSendError("Fake typing adapter is stopped or mismatched")
+        self.typing_updates.append(update)
+        if len(self.typing_updates) > 1000:
+            del self.typing_updates[:-1000]
+
+    async def simulate_typing(self, activity: TypingSignal) -> bool:
+        """Publish immutable activity only through the injected source-bound sink."""
+        if not self._started or self.ctx is None or self.ctx.publish_typing is None:
+            return False
+        return await self.ctx.publish_typing(activity)
 
     async def deliver(self, result: RenderingResult) -> AdapterHandoffResult:
         # Core constructs fake providers by instance ID; explicit route channels

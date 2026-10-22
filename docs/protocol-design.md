@@ -15,7 +15,7 @@ provider metadata; MEDRE core remains independent of that dependency.
 | [XEP-0359 IDs](https://xmpp.org/extensions/xep-0359.html)                                                                                        | Avoid trusting arbitrary stanza-ID assertions without feature and assigning-entity verification.                   |
 | [XEP-0393 styling](https://xmpp.org/extensions/xep-0393.html) | Preserve literal block/span directives as canonical presentation; use explicit unstyled controls when generated styles cannot preserve their intended scope. |
 | [XEP-0461 replies](https://xmpp.org/extensions/xep-0461.html)                                                                                    | Retain scoped native replies with XEP-0428 quote fallback; degrade missing targets to text.                         |
-| [XEP-0085 chat states](https://xmpp.org/extensions/xep-0085.html)                                                                                | Keep bodyless activity out of durable message history; add forwarding only through an ephemeral core seam.         |
+| [XEP-0085 chat states](https://xmpp.org/extensions/xep-0085.html)                                                                                | Forward opt-in composing/stop transitions through the bounded core activity seam; negotiate direct peers and suppress repeated standalone states.         |
 | [XEP-0184 delivery receipts](https://xmpp.org/extensions/xep-0184.html), [XEP-0333 displayed markers](https://xmpp.org/extensions/xep-0333.html) | Keep protocol observations separate from local transport handoff; no receipt capability is claimed.                |
 
 This is a text bridge, not a complete XMPP client. The current canonical envelope

@@ -49,6 +49,9 @@ jobs:
           git show --format= --check HEAD
       - name: Install locked core test environment
         run: uv sync --project .core --locked --extra dev
+      - name: Verify selected core supports native typing
+        run: |
+          .core/.venv/bin/python -c "from medre.core.contracts.typing import TypingActivity, TypingSnapshot, TypingUpdate; from medre.core.contracts.adapter import AdapterCapabilities; assert AdapterCapabilities().typing is False"
       - name: Install SDK-free provider
         if: matrix.mode == 'fake'
         run: uv pip install --python .core/.venv/bin/python --no-deps -e .
