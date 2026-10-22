@@ -117,7 +117,7 @@ async def test_startup_failure_cleans_up_the_session(config, context):
 
 
 def test_capabilities_do_not_claim_unimplemented_protocol_features():
-    assert CAPABILITIES.replies == "fallback"
+    assert CAPABILITIES.replies == "native"
     assert (
         CAPABILITIES.edits
         == CAPABILITIES.deletes

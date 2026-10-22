@@ -18,13 +18,14 @@ async def test_native_transport_write_serializes_text_without_local_queue(config
     transport = Mock()
     client.transport = transport
     connection.ready.set_result(None)
-    native_id = connection.send(
+    native_id = await connection.send(
         {"to": config.rooms[0], "type": "groupchat", "body": "<tag> & Unicode 🦉"}
     )
     written = transport.write.call_args.args[0]
     root = fromstring(b"<stream xmlns='jabber:client'>" + written + b"</stream>")[0]
     assert root.find("{jabber:client}body").text == "<tag> & Unicode 🦉"
-    assert root.attrib["id"] == native_id
+    assert native_id is None
+    assert root.find("{urn:xmpp:sid:0}origin-id").get("id") == root.attrib["id"]
     assert root.attrib["type"] == "groupchat"
     assert client.waiting_queue.empty()
     client.transport = None
@@ -78,17 +79,17 @@ async def test_room_readiness_waits_for_join_and_requests_zero_history(config):
 async def test_closed_session_and_write_failure_never_claim_handoff(config):
     connection = SlixConnection(config, lambda _: None)
     with pytest.raises(AdapterSendError):
-        connection.send(
+        await connection.send(
             {"to": config.rooms[0], "type": "groupchat", "body": "before-ready"}
         )
     connection.ready.set_result(None)
     with pytest.raises(AdapterSendError, match="write failed"):
-        connection.send(
+        await connection.send(
             {"to": config.rooms[0], "type": "groupchat", "body": "disconnected"}
         )
     await connection.close()
     with pytest.raises(AdapterSendError):
-        connection.send(
+        await connection.send(
             {"to": config.rooms[0], "type": "groupchat", "body": "after-close"}
         )
 
@@ -155,7 +156,39 @@ async def test_native_send_rejects_non_messaging_stanza_types(config):
     connection.client.make_message = Mock()
     try:
         with pytest.raises(AdapterSendError, match="Unsupported XMPP message type"):
-            connection.send({"to": config.rooms[0], "body": "text", "type": "error"})
+            await connection.send(
+                {"to": config.rooms[0], "body": "text", "type": "error"}
+            )
         connection.client.make_message.assert_not_called()
     finally:
+        await connection.close()
+
+
+async def test_reply_xml_escapes_ids_and_marks_unicode_quote_offsets(config):
+    connection = SlixConnection(config, lambda _: None)
+    connection.ready.set_result(None)
+    transport = Mock()
+    connection.client.transport = transport
+    quote = "> café 🦉\n"
+    try:
+        native_id = await connection.send(
+            {
+                "to": config.peers[0],
+                "type": "chat",
+                "body": quote + "answer",
+                "reply_id": 'parent<&"',
+                "reply_fallback": quote,
+            }
+        )
+        written = transport.write.call_args.args[0]
+        root = fromstring(b"<stream xmlns='jabber:client'>" + written + b"</stream>")[0]
+        assert root.find("{urn:xmpp:reply:0}reply").get("id") == 'parent<&"'
+        region = root.find("{urn:xmpp:fallback:0}fallback/{urn:xmpp:fallback:0}body")
+        assert int(region.get("end")) == len(quote)
+        assert (
+            root.find("{jabber:client}body").text[int(region.get("end")) :] == "answer"
+        )
+        assert root.get("id") == native_id
+    finally:
+        connection.client.transport = None
         await connection.close()

@@ -28,7 +28,7 @@ class _SessionConnection(Protocol):
 
     async def close(self) -> None: ...
 
-    def send(self, payload: Mapping[str, str]) -> str: ...
+    async def send(self, payload: Mapping[str, str]) -> str | None: ...
 
 
 class XMPPSession:
@@ -138,11 +138,11 @@ class XMPPSession:
             self.reconnects += 1
             await asyncio.sleep(self.config.reconnect_delay_seconds)
 
-    async def send(self, payload: Mapping[str, str]) -> str:
+    async def send(self, payload: Mapping[str, str]) -> str | None:
         connection = self._connection
         if self.state != "healthy" or connection is None:
             raise AdapterSendError("XMPP session is not ready")
-        return connection.send(payload)
+        return await connection.send(payload)
 
     async def stop(self, timeout: float = 5.0) -> None:
         self.state = "stopping"

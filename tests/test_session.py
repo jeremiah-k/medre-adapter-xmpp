@@ -21,7 +21,7 @@ class Connection:
     async def wait_closed(self):
         await self.closed.wait()
 
-    def send(self, payload):
+    async def send(self, payload):
         self.sent.append(payload)
         return "native-id"
 

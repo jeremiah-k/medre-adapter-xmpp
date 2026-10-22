@@ -7,10 +7,14 @@ import ssl
 import uuid
 from collections.abc import Callable, Mapping
 from typing import Any, Literal, cast
+from xml.etree.ElementTree import SubElement
 from .config import XMPPConfig
-from .codec import InboundStanza
+from .codec import InboundStanza, CLIENT, room_stanza_id
 
 from medre.core.contracts.adapter import AdapterPermanentError, AdapterSendError
+
+MUC_ECHO_TIMEOUT_SECONDS = 5.0
+MAX_PENDING_ECHOES = 128
 
 
 class SlixConnection:
@@ -43,6 +47,7 @@ class SlixConnection:
         self.client.register_plugin("xep_0030")
         self.client.register_plugin("xep_0045")
         self.client.register_plugin("xep_0199")
+        self.client.plugin["xep_0030"].add_feature("urn:xmpp:reply:0")
         self.ready = asyncio.get_running_loop().create_future()
         self.closed = asyncio.Event()
         self._handlers: set[asyncio.Task[None]] = set()
@@ -54,6 +59,7 @@ class SlixConnection:
         self.client.add_event_handler("entity_caps", self._entity_caps)
         self._connect_task: Any | None = None
         self.trusted_rooms: frozenset[str] = frozenset()
+        self._echoes: dict[tuple[str, str], tuple[asyncio.Future[str | None], str]] = {}
         self.client.add_event_handler("session_start", self._session_started)
         # A failed SASL mechanism is retryable by Slixmpp; exhaustion is terminal.
         self.client.add_event_handler("failed_all_auth", self._failed_auth)
@@ -148,7 +154,13 @@ class SlixConnection:
                 AdapterPermanentError("XMPP authentication failed")
             )
 
+    def _release_echoes(self) -> None:
+        for future, _body in self._echoes.values():
+            if not future.done():
+                future.set_result(None)
+
     def _disconnected(self, _event: Any) -> None:
+        self._release_echoes()
         self.closed.set()
         if not self.ready.done():
             self.ready.set_exception(
@@ -157,6 +169,7 @@ class SlixConnection:
 
     def _own_presence(self, presence: Any) -> None:
         if presence["type"] in {"unavailable", "error"}:
+            self._release_echoes()
             self.closed.set()
 
     def _message(self, message: Any) -> None:
@@ -164,12 +177,35 @@ class SlixConnection:
         # ingress queue so subsequent SDK processing cannot mutate its contents.
         from copy import deepcopy
 
-        self.receive(InboundStanza(deepcopy(message.xml), self.trusted_rooms))
+        stanza = deepcopy(message.xml)
+        sender = stanza.get("from", "")
+        room, _, nick = sender.partition("/")
+        if (
+            stanza.tag == f"{{{CLIENT}}}message"
+            and stanza.get("type") == "groupchat"
+            and room in self.trusted_rooms
+            and nick == self.config.nickname
+            and stanza.find("{urn:xmpp:delay}delay") is None
+            and stanza.find("{jabber:x:delay}x") is None
+        ):
+            origins = stanza.findall("{urn:xmpp:sid:0}origin-id")
+            if len(origins) == 1:
+                pending = self._echoes.get((room, origins[0].get("id", "")))
+                if pending is not None:
+                    future, body = pending
+                    bodies = stanza.findall(f"{{{CLIENT}}}body")
+                    if (
+                        not future.done()
+                        and len(bodies) == 1
+                        and bodies[0].text == body
+                    ):
+                        future.set_result(room_stanza_id(stanza, room))
+        self.receive(InboundStanza(stanza, self.trusted_rooms))
 
     async def wait_closed(self) -> None:
         await self.closed.wait()
 
-    def send(self, payload: Mapping[str, str]) -> str:
+    async def send(self, payload: Mapping[str, str]) -> str | None:
         if (
             self.closed.is_set()
             or not self.ready.done()
@@ -187,18 +223,60 @@ class SlixConnection:
         )
         native_id = uuid.uuid4().hex
         message["id"] = native_id
+        SubElement(message.xml, "{urn:xmpp:sid:0}origin-id", {"id": native_id})
+        if "reply_id" in payload:
+            SubElement(
+                message.xml, "{urn:xmpp:reply:0}reply", {"id": payload["reply_id"]}
+            )
+            quote = payload.get("reply_fallback")
+            if quote:
+                fallback = SubElement(
+                    message.xml,
+                    "{urn:xmpp:fallback:0}fallback",
+                    {"for": "urn:xmpp:reply:0"},
+                )
+                SubElement(
+                    fallback,
+                    "{urn:xmpp:fallback:0}body",
+                    {"start": "0", "end": str(len(quote))},
+                )
+        room = payload["to"]
+        future: asyncio.Future[str | None] | None = None
+        if (
+            message_type == "groupchat"
+            and room in self.trusted_rooms
+            and len(self._echoes) < MAX_PENDING_ECHOES
+        ):
+            future = asyncio.get_running_loop().create_future()
+            self._echoes[(room, native_id)] = (future, payload["body"])
         # send_message()/send() enqueue locally and cannot prove handoff. This
         # provider registers no stream-management, encryption or outgoing stanza
         # filters: serialize with Slixmpp and cross its public send_raw boundary
         # synchronously. No queue acceptance is promoted to remote confirmation.
         try:
-            self.client.send_raw(str(message))
-        except Exception:
-            raise AdapterSendError("XMPP transport write failed") from None
-        return native_id
+            try:
+                self.client.send_raw(str(message))
+            except Exception:
+                raise AdapterSendError("XMPP transport write failed") from None
+            if message_type != "groupchat":
+                return native_id
+            if future is None:
+                return None
+            try:
+                async with asyncio.timeout(MUC_ECHO_TIMEOUT_SECONDS):
+                    return await future
+            except TimeoutError:
+                # The transport write happened. Missing correlation alone must
+                # not invent a failed send and trigger a duplicate retry.
+                return None
+        finally:
+            self._echoes.pop((room, native_id), None)
+            if future is not None and not future.done():
+                future.cancel()
 
     async def close(self) -> None:
         self._closing = True
+        self._release_echoes()
         self.client.del_event_handler("entity_caps", self._entity_caps)
         self.client.del_event_handler("session_start", self._session_started)
         self.client.cancel_connection_attempt()

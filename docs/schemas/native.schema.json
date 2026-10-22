@@ -11,17 +11,37 @@
       "type": "string"
     },
     "nickname": {
-      "type": ["string", "null"]
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "message_type": {
-      "enum": ["chat", "normal", "groupchat"]
+      "enum": [
+        "chat",
+        "normal",
+        "groupchat"
+      ]
     },
     "stanza_id": {
-      "type": ["string", "null"]
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "room_stanza_id": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "description": "Room-assigned stanza ID from a room advertising XEP-0359 at receipt time; absent for unverified namespaces."
+    },
+    "origin_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Origin-generated ID retained independently of a server-rewritten stanza ID."
     }
   },
   "required": [
