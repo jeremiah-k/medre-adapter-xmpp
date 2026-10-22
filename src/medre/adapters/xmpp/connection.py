@@ -5,11 +5,14 @@ from __future__ import annotations
 import asyncio
 import ssl
 import uuid
+from collections import OrderedDict
 from collections.abc import Callable, Mapping
 from typing import Any, Literal, cast
 from xml.etree.ElementTree import SubElement
 from .config import XMPPConfig
 from .codec import InboundStanza, CLIENT, room_stanza_id
+from .typing import CHATSTATES, activity_from_stanza
+from medre.core.contracts.typing import TypingUpdate
 
 from medre.core.contracts.adapter import AdapterPermanentError, AdapterSendError
 
@@ -47,6 +50,9 @@ class SlixConnection:
         self.client.register_plugin("xep_0030")
         self.client.register_plugin("xep_0045")
         self.client.register_plugin("xep_0199")
+        self.client.register_plugin("xep_0085")
+        self._typing_states: OrderedDict[str, str] = OrderedDict()
+        self._typing_peers: set[str] = set()
         self.client.plugin["xep_0030"].add_feature("urn:xmpp:reply:0")
         self.client.plugin["xep_0030"].add_feature("urn:xmpp:styling:0")
         self.ready = asyncio.get_running_loop().create_future()
@@ -68,6 +74,7 @@ class SlixConnection:
         # One message hook handles direct chat and MUC once; never register
         # both message and groupchat_message callbacks for the same stanza.
         self.client.add_event_handler("message", self._message)
+        self.client.add_event_handler("chatstate", self._chatstate)
         for room in config.rooms:
             self.client.add_event_handler(
                 f"muc::{room}::self-presence", self._own_presence
@@ -173,6 +180,11 @@ class SlixConnection:
             self._release_echoes()
             self.closed.set()
 
+    def _chatstate(self, message: Any) -> None:
+        """Receive bodyless XEP-0085 states; Slixmpp's message hook needs a body."""
+        if message.xml.find("{jabber:client}body") is None:
+            self._message(message)
+
     def _message(self, message: Any) -> None:
         # The SDK owns this Element for callback lifetime. Copy into the bounded
         # ingress queue so subsequent SDK processing cannot mutate its contents.
@@ -201,10 +213,50 @@ class SlixConnection:
                         and bodies[0].text == body
                     ):
                         future.set_result(room_stanza_id(stanza, room))
+        activity = activity_from_stanza(stanza, self.config)
+        if activity is not None and stanza.get("type") == "chat":
+            self._typing_peers.add(activity.channel_id)
         self.receive(InboundStanza(stanza, self.trusted_rooms))
 
     async def wait_closed(self) -> None:
         await self.closed.wait()
+
+    async def send_typing(self, update: TypingUpdate) -> None:
+        """Emit XEP-0085 state changes, never repeated standalone composing states."""
+        if (
+            self.closed.is_set()
+            or not self.ready.done()
+            or self.ready.cancelled()
+            or self.ready.exception() is not None
+        ):
+            raise AdapterSendError("XMPP typing connection is not ready")
+        channel = update.target.channel_id
+        message_type = self.config.message_type(channel)
+        if message_type == "chat" and channel not in self._typing_peers:
+            return  # Explicit native support is required before direct state sends.
+        state = "composing" if update.typing else "paused"
+        previous = self._typing_states.get(channel)
+        if previous == state or (not update.typing and previous is None):
+            return
+        if channel not in self._typing_states and len(self._typing_states) >= 256:
+            unused = next(
+                (
+                    key
+                    for key, value in self._typing_states.items()
+                    if value != "composing"
+                ),
+                None,
+            )
+            if unused is None:
+                return
+            del self._typing_states[unused]
+        message = self.client.make_message(
+            mto=channel, mtype=cast(Literal["chat", "groupchat"], message_type)
+        )
+        SubElement(message.xml, "{" + CHATSTATES + "}" + state)
+        self.client.send_raw(str(message))
+        self._typing_states[channel] = state
+        self._typing_states.move_to_end(channel)
 
     async def send(self, payload: Mapping[str, str]) -> str | None:
         if (
@@ -244,6 +296,8 @@ class SlixConnection:
                     {"start": "0", "end": str(len(quote))},
                 )
         room = payload["to"]
+        if room in self._typing_states:
+            SubElement(message.xml, "{" + CHATSTATES + "}active")
         future: asyncio.Future[str | None] | None = None
         if (
             message_type == "groupchat"
@@ -259,6 +313,8 @@ class SlixConnection:
         try:
             try:
                 self.client.send_raw(str(message))
+                if room in self._typing_states:
+                    self._typing_states[room] = "active"
             except Exception:
                 raise AdapterSendError("XMPP transport write failed") from None
             if message_type != "groupchat":

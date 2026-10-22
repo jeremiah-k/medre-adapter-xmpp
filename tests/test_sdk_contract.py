@@ -192,3 +192,32 @@ async def test_reply_xml_escapes_ids_and_marks_unicode_quote_offsets(config):
     finally:
         connection.client.transport = None
         await connection.close()
+
+
+async def test_bodyless_chat_state_uses_native_hook_without_duplicate_content(config):
+    """The generic SDK message matcher requires a body; XEP-0085 owns controls."""
+    from slixmpp.stanza import Message
+    from conftest import stanza
+    from xml.etree.ElementTree import SubElement
+
+    received = []
+    connection = SlixConnection(config, received.append)
+    try:
+        connection.client.init_plugins()
+        xml = stanza(body=None)
+        SubElement(xml, "{http://jabber.org/protocol/chatstates}composing")
+        notice = Message(xml=xml)
+        connection.client.event("chatstate", notice)
+        assert len(received) == 1
+        assert (
+            received[0].stanza.find("{http://jabber.org/protocol/chatstates}composing")
+            is not None
+        )
+        content = stanza()
+        SubElement(content, "{http://jabber.org/protocol/chatstates}active")
+        connection.client.event("chatstate", Message(xml=content))
+        assert len(received) == 1
+        connection.client.event("message", Message(xml=content))
+        assert len(received) == 2
+    finally:
+        await connection.close()

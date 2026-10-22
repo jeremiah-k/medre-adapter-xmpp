@@ -16,6 +16,7 @@ from medre.core.contracts.adapter import (
     AdapterRole,
     AdapterSendError,
 )
+from medre.core.contracts.typing import TypingActivity, TypingUpdate
 from medre.core.rendering.renderer import RenderingResult
 
 from .codec import InboundStanza, XMPPCodec
@@ -39,6 +40,7 @@ CAPABILITIES = AdapterCapabilities(
     channels=True,
     identity_encryption=False,
     presence=False,
+    typing=True,
     topic_rooms=True,
     mesh_routing=False,
     priority_delivery=False,
@@ -119,9 +121,13 @@ class XMPPAdapter(AdapterContract):
 
         self.ctx = ctx
         self._mark_started(ctx)
-        self.session = (self._session_factory or XMPPSession)(
-            self.config, self._receive
+        options = (
+            {"typing_receive": self._receive_typing}
+            if ctx.publish_typing is not None
+            else {}
         )
+        factory: Callable[..., XMPPSession] = self._session_factory or XMPPSession
+        self.session = factory(self.config, self._receive, **options)
         try:
             await self.session.start()
         except BaseException:
@@ -140,6 +146,18 @@ class XMPPAdapter(AdapterContract):
         )
         if event is not None:
             await self.publish_inbound(event)
+
+    async def _receive_typing(self, activity: TypingActivity) -> None:
+        """Publish live optional state through the source-bound transient sink."""
+        if self.ctx is not None and self.ctx.publish_typing is not None:
+            await self.ctx.publish_typing(activity)
+
+    async def send_typing(self, update: TypingUpdate) -> None:
+        """Use the session-owned native port without message rendering or receipts."""
+        if self.session is None or update.target.adapter_id != self.adapter_id:
+            raise AdapterSendError("XMPP typing session or adapter is not available")
+        self.config.message_type(update.target.channel_id)
+        await self.session.send_typing(update)
 
     async def stop(self, timeout: float = 5.0) -> None:
         if self.session is not None:
