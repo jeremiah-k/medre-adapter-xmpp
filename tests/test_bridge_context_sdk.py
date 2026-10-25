@@ -10,7 +10,10 @@ from medre.adapters.xmpp.bridge_context import (
     encode_context,
     _xml_context,
 )
-from medre.core.rendering.bridge_context import build_bridge_context
+from medre.core.rendering.bridge_context import (
+    build_bridge_context,
+    normalize_bridge_context,
+)
 
 from medre.adapters.xmpp.connection import SlixConnection
 from medre.adapters.xmpp.codec import XMPPCodec
@@ -68,7 +71,9 @@ def test_native_serializer_expansion_controls_xml_budget(config):
 
     event = XMPPCodec(config).decode(stanza(), timestamp=NOW)
     context = build_bridge_context(event)
-    context["source"]["sender_name"] = "'" * 3500
+    for field in ("sender_name", "sender_short_name", "origin_label"):
+        context["source"][field] = "'" * 1000
+    assert normalize_bridge_context(context) is not None
     assert len(tostring(_xml_context(context), encoding="utf-8")) < MAX_CONTEXT_BYTES
     assert len(slix_tostring(_xml_context(context)).encode("utf-8")) > MAX_CONTEXT_BYTES
     assert encode_context(context) is None
