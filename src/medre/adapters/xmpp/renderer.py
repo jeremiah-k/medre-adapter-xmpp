@@ -12,6 +12,8 @@ from medre.core.rendering.attribution import (
     build_relay_attribution,
     format_relay_prefix,
 )
+from medre.core.rendering.bridge_context import build_bridge_context
+from .bridge_context import encode_context
 from medre.core.rendering.relations import degrade_relations_inline
 from medre.core.rendering.renderer import RenderingContext, RenderingResult
 
@@ -44,6 +46,7 @@ class XMPPRenderer:
     async def render(
         self, event: CanonicalEvent, ctx: RenderingContext
     ) -> RenderingResult:
+        """Render readable attribution and independent bounded source claims for XMPP."""
         if not self.can_render(event, ctx):
             raise ValueError("Unsupported XMPP rendering target or strategy")
         config = self.configs[ctx.target_adapter]
@@ -134,6 +137,12 @@ class XMPPRenderer:
         }
         if unstyled:
             payload["unstyled"] = "true"
+        if config.metadata_embedding:
+            context = encode_context(
+                build_bridge_context(event, attr, include_relations=not fallback)
+            )
+            if context is not None:
+                payload["bridge_context"] = context
         if reply_id is not None:
             payload["reply_id"] = reply_id
             original = reply_relations[0].fallback_text

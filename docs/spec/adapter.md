@@ -162,3 +162,34 @@ be retained when already represented by the canonical body. Added reply quotes
 MUST NOT introduce unintended source styles. The adapter MUST advertise
 `urn:xmpp:styling:0` through service discovery and serialize the unstyled control
 as a separate XML element, never as body markup.
+
+
+## Structured relay context
+
+With `metadata_embedding=true` (the default), rendered messages MUST carry valid
+bounded core v1 source claims independently of the visible prefix. The native
+connection MUST encode them in a `context` extension qualified by
+`urn:medre:bridge-context:1`, using XMPP's namespaced extended-content model
+([RFC 6120 section 8.4](https://xmpp.org/rfcs/rfc6120.html#stanzas-extended)).
+This is a MEDRE extension, not a standardized sender-impersonation mechanism.
+
+The extension has `schema_version="1"`, one `source` element and one `relations`
+element. Known scalar fields are attributes. An absent optional value is omitted;
+an explicit empty string is retained. Scoped references use `native_ref` and
+`target_native_ref` children; relation hints use `relation` children. Every child
+uses the same namespace. The shared core bridge-context schema defines allowed
+fields and per-field bounds. Both internal serialized context and emitted XML
+MUST fit 16 KiB; XML escaping counts. Unrepresentable optional context MUST be
+omitted without altering the visible message. Metadata embedding MAY be disabled.
+
+Inbound context MUST be bounded and normalized, and malformed, duplicate or
+unsupported context MUST be ignored without discarding valid text. Unknown fields
+MUST be discarded. Valid context remains a remote relay claim under
+`metadata.native.data.xmpp.relay.bridge_context`; it MUST NOT replace the actual
+sender, canonical event ID, source native reference or native reply relation.
+Native stanza IDs and exact scoped reply binding keep their existing authority.
+
+Text-only fallback MUST omit structured relation hints. Private SDK data MUST NOT
+be copied into the extension. Ordinary clients continue to show the bridge's
+native identity and the readable attribution prefix; no per-message nick changes
+or invented sender accounts are performed.

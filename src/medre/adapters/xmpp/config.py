@@ -44,6 +44,8 @@ def plain_text(value: object) -> bool:
 
 @dataclass(frozen=True)
 class XMPPConfig:
+    """Configure exact XMPP conversations, text limits and optional relay metadata."""
+
     adapter_id: str
     jid: str = ""
     password: str = field(default="", repr=False)
@@ -58,8 +60,12 @@ class XMPPConfig:
     inbound_queue_size: int = 100
     origin_label: str = ""
     relay_prefix: str = "[{origin_label}] {sender}: "
+    metadata_embedding: bool = True
 
     def validate(self) -> XMPPConfig:
+        """Reject invalid identities and controls before any native connection is opened."""
+        if type(self.metadata_embedding) is not bool:
+            raise ValueError("metadata_embedding must be a boolean")
         if not isinstance(self.jid, str):
             raise ValueError("jid must be a string")
         if self.jid:
