@@ -180,3 +180,21 @@ async def test_xmpp_styling_and_text_selection_agree(config, payload, expected):
         event, render_context()
     )
     assert result.payload["body"] == expected
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"body": "valid body", "text": 42},
+        {"body": 42, "text": "legacy"},
+        {"body": None, "text": "legacy", "formatting": {"version": 1, "spans": []}},
+    ],
+)
+async def test_malformed_canonical_text_never_becomes_native_content(config, payload):
+    """Reject invalid canonical text before constructing a native stanza."""
+    import msgspec
+
+    event = XMPPCodec(config).decode(stanza(), timestamp=NOW)
+    event = msgspec.structs.replace(event, payload=payload)
+    with pytest.raises(ValueError, match="must be text"):
+        await XMPPRenderer({config.adapter_id: config}).render(event, render_context())
