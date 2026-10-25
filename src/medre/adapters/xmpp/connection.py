@@ -12,6 +12,7 @@ from xml.etree.ElementTree import SubElement
 from .config import XMPPConfig
 from .codec import InboundStanza, CLIENT, room_stanza_id
 from .typing import CHATSTATES, activity_from_stanza
+from .bridge_context import append_context
 from medre.core.contracts.typing import TypingUpdate
 
 from medre.core.contracts.adapter import AdapterPermanentError, AdapterSendError
@@ -259,6 +260,7 @@ class SlixConnection:
         self._typing_states.move_to_end(channel)
 
     async def send(self, payload: Mapping[str, str]) -> str | None:
+        """Write rendered text and bounded claims without changing native sender identity."""
         if (
             self.closed.is_set()
             or not self.ready.done()
@@ -276,6 +278,8 @@ class SlixConnection:
         )
         if payload.get("unstyled") == "true":
             SubElement(message.xml, "{urn:xmpp:styling:0}unstyled")
+        if "bridge_context" in payload:
+            append_context(message.xml, payload["bridge_context"])
         native_id = uuid.uuid4().hex
         message["id"] = native_id
         SubElement(message.xml, "{urn:xmpp:sid:0}origin-id", {"id": native_id})

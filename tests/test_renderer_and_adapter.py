@@ -27,7 +27,9 @@ async def test_renderer_retains_plain_text_and_exact_destination(config):
     result = await XMPPRenderer({config.adapter_id: config}).render(
         event, render_context()
     )
-    assert result.payload == {
+    assert {
+        key: value for key, value in result.payload.items() if key != "bridge_context"
+    } == {
         "body": "Hello <XMPP> & friends",
         "unstyled": "true",
         "to": config.rooms[0],

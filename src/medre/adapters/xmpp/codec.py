@@ -14,6 +14,7 @@ from medre.core.events.metadata import EventMetadata, NativeMetadata, TransportM
 
 from .styling import NAMESPACE, from_text
 from .config import XMPPConfig, bare_jid, plain_text
+from .bridge_context import extract_context
 
 CLIENT = "jabber:client"
 # Mutations require ownership and target binding. Never relay their bodies as
@@ -220,6 +221,7 @@ class XMPPCodec:
                     fallback_text=quoted,
                 ),
             )
+        relay_context = extract_context(stanza)
         return CanonicalEvent(
             event_id=event_id,
             event_kind="message.created",
@@ -251,6 +253,11 @@ class XMPPCodec:
                             "stanza_id": native_id,
                             "origin_id": origin_id,
                             "room_stanza_id": room_id,
+                            **(
+                                {"relay": {"bridge_context": relay_context}}
+                                if relay_context is not None
+                                else {}
+                            ),
                         }
                     }
                 ),

@@ -20,6 +20,7 @@ from medre.core.contracts.typing import TypingActivity, TypingUpdate
 from medre.core.rendering.renderer import RenderingResult
 
 from .codec import InboundStanza, XMPPCodec
+from .bridge_context import decode_context
 from .config import XMPPConfig, plain_text
 
 if TYPE_CHECKING:
@@ -34,7 +35,7 @@ CAPABILITIES = AdapterCapabilities(
     edits="unsupported",
     deletes="unsupported",
     attachments=False,
-    metadata_fields=False,
+    metadata_fields=True,
     store_and_forward=False,
     direct_messages=True,
     channels=True,
@@ -56,8 +57,21 @@ def validate_payload(result: RenderingResult, config: XMPPConfig) -> Mapping[str
         message_type = config.message_type(result.target_channel)
     except ValueError:
         raise AdapterPermanentError("Unconfigured XMPP destination") from None
-    if set(payload) - {"to", "type", "body", "reply_id", "reply_fallback", "unstyled"}:
+    if set(payload) - {
+        "to",
+        "type",
+        "body",
+        "reply_id",
+        "reply_fallback",
+        "unstyled",
+        "bridge_context",
+    }:
         raise AdapterPermanentError("Unknown rendered XMPP payload fields")
+    if (
+        "bridge_context" in payload
+        and decode_context(payload["bridge_context"]) is None
+    ):
+        raise AdapterPermanentError("Invalid rendered XMPP relay context")
     if "unstyled" in payload and payload["unstyled"] != "true":
         raise AdapterPermanentError("Invalid XMPP styling control")
     reply = payload.get("reply_id")
