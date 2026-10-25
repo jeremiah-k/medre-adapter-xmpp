@@ -7,6 +7,7 @@ from typing import Any
 
 from medre.adapters.metadata import project_source_fields
 from medre.core.events.canonical import CanonicalEvent
+from medre.core.events.text import select_message_body
 from medre.core.events.text import StyledText, TextSpan
 from medre.core.rendering.attribution import (
     build_relay_attribution,
@@ -56,9 +57,7 @@ class XMPPRenderer:
         ):
             raise ValueError("XMPP rendering requires a configured bare JID channel")
         message_type = config.message_type(ctx.target_channel)
-        text = event.payload.get("body", event.payload.get("text", ""))
-        if not isinstance(text, str):
-            raise ValueError("XMPP message body must be text")
+        text = select_message_body(event.payload)
         reply_relations = [
             rel for rel in event.relations if rel.relation_type == "reply"
         ]
