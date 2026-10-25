@@ -51,7 +51,7 @@ def _xml_context(context: dict[str, Any]) -> Element:
 def _xml_safe(value: Any) -> bool:
     """Check normalized values before ElementTree can serialize illegal XML text."""
     if isinstance(value, str):
-        return plain_text(value)
+        return plain_text(value) and not any(char in value for char in "\t\n\r")
     if isinstance(value, dict):
         return all(_xml_safe(item) for item in value.values())
     if isinstance(value, list):
@@ -59,12 +59,28 @@ def _xml_safe(value: Any) -> bool:
     return value is None or type(value) is int
 
 
+def _wire_length(root: Element) -> int:
+    """Measure the serialized bytes the production stanza puts on the wire.
+
+    The pinned Slixmpp serializer is the wire authority; SDK-free tiers fall
+    back to ElementTree, whose attribute escaping differs. Those tiers never
+    touch an XMPP socket, and SDK-marked tests pin the serializer's expansion.
+    No availability probe runs at import time, keeping the SDK-free plugin
+    chain importable without slixmpp.
+    """
+    try:
+        from slixmpp.xmlstream.tostring import tostring as slix_tostring
+    except ImportError:
+        return len(tostring(root, encoding="utf-8"))
+    return len(slix_tostring(root).encode("utf-8"))
+
+
 def encode_context(value: object) -> str | None:
     """Prepare bounded durable context, or omit unrepresentable optional claims.
 
     Both JSON payload and emitted XML count toward the 16 KiB context limit.
-    XML escaping can expand otherwise short claims, so the wire form is measured
-    before the renderer accepts the optional metadata.
+    The pinned Slixmpp serializer is the wire authority for escaped XML size.
+    Literal attribute tabs and line breaks cannot survive XML normalization.
     """
     context = normalize_bridge_context(value)
     if context is None or not _xml_safe(context):
@@ -72,7 +88,7 @@ def encode_context(value: object) -> str | None:
     text = json.dumps(context, ensure_ascii=False, separators=(",", ":"))
     if (
         len(text.encode("utf-8")) > MAX_CONTEXT_BYTES
-        or len(tostring(_xml_context(context), encoding="utf-8")) > MAX_CONTEXT_BYTES
+        or _wire_length(_xml_context(context)) > MAX_CONTEXT_BYTES
     ):
         return None
     return text
@@ -113,10 +129,7 @@ def extract_context(stanza: Element) -> dict[str, Any] | None:
     if len(roots) != 1:
         return None
     root = roots[0]
-    if (
-        root.get("schema_version") != "1"
-        or len(tostring(root, encoding="utf-8")) > MAX_CONTEXT_BYTES
-    ):
+    if root.get("schema_version") != "1" or _wire_length(root) > MAX_CONTEXT_BYTES:
         return None
     sources = root.findall(_element("source"))
     groups = root.findall(_element("relations"))
