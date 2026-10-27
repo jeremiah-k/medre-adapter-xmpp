@@ -28,6 +28,9 @@ def adapter_spec() -> AdapterSpec:
             "medre.adapters.xmpp.metadata", "project_attribution"
         ),
         sample_config=SymbolRef("medre.adapters.xmpp.sample", "sample_config"),
+        stopped_state_declaration=SymbolRef(
+            "medre.adapters.xmpp.stopped_declaration", "declaration"
+        ),
         support_endpoint_fields=("jid", "rooms", "peers", "host", "port"),
         support_secret_fields=("password",),
     )
