@@ -211,3 +211,17 @@ Health does not prove recipient delivery or reading.
 The cancellation fence MUST include native connection cleanup and reconnect
 backoff. Unexpected runner cancellation in either phase MUST report failed
 health; shutdown-owned cancellation MUST retain the retired callback fence.
+
+## Stopped-state declaration
+
+The adapter ships a provider-owned stopped-state declaration referenced from
+its `AdapterSpec` through the optional `stopped_state_declaration` symbol. The
+declaration MUST NOT import the transport SDK, MUST NOT open a session, and
+MUST resolve everything from configured values alone. Configured instances
+MUST be declared `stateless_local` with zero files: the account credential
+lives in configuration or an environment override and is never part of a
+state snapshot. The adapter owns no local ownership primitive; local
+exclusion MUST be reported as unsupported because another host holding the
+same JID is arbitrated by the server, not by a machine-local lock. Consumers
+and selection enforcement live in `medre.maintenance.stopped_declare` on the
+core side.
