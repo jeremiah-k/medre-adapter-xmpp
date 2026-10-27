@@ -163,7 +163,6 @@ MUST NOT introduce unintended source styles. The adapter MUST advertise
 `urn:xmpp:styling:0` through service discovery and serialize the unstyled control
 as a separate XML element, never as body markup.
 
-
 ## Structured relay context
 
 With `metadata_embedding=true` (the default), rendered messages MUST carry valid
@@ -193,3 +192,22 @@ Text-only fallback MUST omit structured relation hints. Private SDK data MUST NO
 be copied into the extension. Ordinary clients continue to show the bridge's
 native identity and the readable attribution prefix; no per-message nick changes
 or invented sender accounts are performed.
+
+## Native health notifications
+
+The provider MUST use the same retained native state for health probes and the
+optional `AdapterContext.report_health` sink. Reports MUST describe settled
+`healthy`, `degraded` or `failed` observations for the bound adapter. Startup and
+stop MUST delimit the reporting lifetime; retired callbacks MUST NOT publish
+for a replacement. Observer exceptions MUST NOT interrupt native operations,
+release ownership, create receipts or authorize another send. Contexts without
+the sink retain explicit-probe compatibility.
+
+Authentication and configured room joins establish healthy native session state.
+Connection loss and reconnect backoff MUST report degraded health. Permanent
+native refusal and unexpected sync-owner cancellation MUST report failed health.
+Health does not prove recipient delivery or reading.
+
+The cancellation fence MUST include native connection cleanup and reconnect
+backoff. Unexpected runner cancellation in either phase MUST report failed
+health; shutdown-owned cancellation MUST retain the retired callback fence.
