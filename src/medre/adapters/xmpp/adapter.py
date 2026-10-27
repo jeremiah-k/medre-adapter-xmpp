@@ -127,12 +127,18 @@ class XMPPAdapter(AdapterContract):
         self.ctx: AdapterContext | None = None
         self.session: XMPPSession | None = None
         self._session_factory = session_factory
+        self._health_epoch = 0
+        self._health_active = False
+        self._reported_health: str | None = None
 
     async def start(self, ctx: AdapterContext) -> None:
         if self.session is not None:
             raise RuntimeError("XMPP adapter is started")
         from .session import XMPPSession
 
+        self._health_epoch += 1
+        self._reported_health = None
+        epoch = self._health_epoch
         self.ctx = ctx
         self._mark_started(ctx)
         options = (
@@ -142,8 +148,12 @@ class XMPPAdapter(AdapterContract):
         )
         factory: Callable[..., XMPPSession] = self._session_factory or XMPPSession
         self.session = factory(self.config, self._receive, **options)
+        if isinstance(self.session, XMPPSession):
+            self.session.set_health_callback(lambda: self._report_native_health(epoch))
         try:
             await self.session.start()
+            self._health_active = True
+            self._report_native_health(epoch)
         except BaseException:
             await self.session.stop()
             self.session = None
@@ -174,6 +184,9 @@ class XMPPAdapter(AdapterContract):
         await self.session.send_typing(update)
 
     async def stop(self, timeout: float = 5.0) -> None:
+        self._health_active = False
+        self._health_epoch += 1
+        self._reported_health = None
         if self.session is not None:
             session, self.session = self.session, None
             await session.stop(timeout=timeout)
@@ -201,7 +214,32 @@ class XMPPAdapter(AdapterContract):
             "reconnects": session.reconnects if session else 0,
         }
 
+    def _report_native_health(self, epoch: int) -> None:
+        """Report this lifetime's native state; diagnostics cannot control reconnection."""
+        if not self._health_active or epoch != self._health_epoch or self.ctx is None:
+            return
+        info = self._health_info()
+        report = getattr(self.ctx, "report_health", None)
+        if (
+            info.health not in {"healthy", "degraded", "failed"}
+            or report is None
+            or self._reported_health == info.health
+        ):
+            return
+        try:
+            report(info)
+            self._reported_health = info.health
+        except Exception as exc:
+            self.ctx.logger.warning(
+                "XMPP health notification failed (%s)", type(exc).__name__
+            )
+
     async def health_check(self) -> AdapterInfo:
+        """Read authenticated connection and room readiness without native requests."""
+        return self._health_info()
+
+    def _health_info(self) -> AdapterInfo:
+        """Share the native session observation between probes and notifications."""
         state = self.session.state if self.session else "unknown"
         return AdapterInfo(
             self.adapter_id,

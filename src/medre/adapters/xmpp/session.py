@@ -59,16 +59,33 @@ class XMPPSession:
         self._queue: asyncio.Queue[InboundStanza] = asyncio.Queue(
             maxsize=config.inbound_queue_size
         )
+        self._health_callback: Callable[[], None] | None = None
         self.state = "unknown"
         self._accepting = False
         self.dropped_inbound = 0
         self.failed_inbound = 0
         self.reconnects = 0
 
+    def set_health_callback(self, callback: Callable[[], None] | None) -> None:
+        """Attach a diagnostic observer without changing native connection ownership."""
+        self._health_callback = callback
+
+    def _set_state(self, state: str) -> None:
+        """Publish settled native state after updating the explicit-probe observation."""
+        self.state = state
+        if (
+            state in {"healthy", "degraded", "failed"}
+            and self._health_callback is not None
+        ):
+            try:
+                self._health_callback()
+            except Exception as exc:
+                _logger.warning("XMPP health observer failed (%s)", type(exc).__name__)
+
     async def start(self) -> None:
         if self._runner is not None:
             raise RuntimeError("XMPP session is started")
-        self.state = "starting"
+        self._set_state("starting")
         self._accepting = True
         self._ready = asyncio.get_running_loop().create_future()
         self._worker = asyncio.create_task(self._consume(), name="xmpp-ingress")
@@ -147,6 +164,16 @@ class XMPPSession:
         await connection.send_typing(update)
 
     async def _run(self) -> None:
+        """Observe cancellation across connection setup, cleanup and reconnect backoff."""
+        try:
+            await self._run_connections()
+        except asyncio.CancelledError:
+            if self._accepting:
+                self._set_state("failed")
+            raise
+
+    async def _run_connections(self) -> None:
+        """Own native connection replacement while retaining the outer cancellation fence."""
         from .connection import SlixConnection
 
         factory = self._connection_factory or SlixConnection
@@ -156,12 +183,13 @@ class XMPPSession:
                 connection = factory(self.config, self._enqueue)
                 self._connection = connection
                 await connection.open()
-                self.state = "healthy"
+                self._set_state("healthy")
                 if self._ready is not None and not self._ready.done():
                     self._ready.set_result(None)
                 await connection.wait_closed()
+                self._set_state("degraded")
             except AdapterPermanentError:
-                self.state = "failed"
+                self._set_state("failed")
                 if self._ready is not None and not self._ready.done():
                     self._ready.set_exception(
                         AdapterPermanentError(
@@ -170,7 +198,7 @@ class XMPPSession:
                     )
                 return
             except Exception:
-                self.state = "degraded"
+                self._set_state("degraded")
                 _logger.warning(
                     "XMPP session unavailable; reconnecting at a bounded rate"
                 )
@@ -183,7 +211,7 @@ class XMPPSession:
                         await connection.close()
                     except Exception:
                         _logger.warning("XMPP connection cleanup failed")
-            self.state = "degraded"
+            self._set_state("degraded")
             self.reconnects += 1
             await asyncio.sleep(self.config.reconnect_delay_seconds)
 
@@ -194,7 +222,7 @@ class XMPPSession:
         return await connection.send(payload)
 
     async def stop(self, timeout: float = 5.0) -> None:
-        self.state = "stopping"
+        self._set_state("stopping")
         self._accepting = False
         tasks = [
             task
@@ -219,4 +247,4 @@ class XMPPSession:
                     self._ready.cancel()
                 elif not self._ready.cancelled():
                     self._ready.exception()
-            self.state = "unknown"
+            self._set_state("unknown")
