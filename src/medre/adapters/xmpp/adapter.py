@@ -6,6 +6,8 @@ from collections.abc import Mapping, Callable
 from typing import TYPE_CHECKING, cast
 from dataclasses import replace
 
+from medre.core.supervision.diagnostic_contract import COMMON_DIAGNOSTIC_KEYS
+
 from medre.core.contracts.adapter import (
     AdapterCapabilities,
     AdapterContext,
@@ -208,6 +210,9 @@ class XMPPAdapter(AdapterContract):
         """Expose bounded-admission and recovery evidence without credentials."""
         session = self.session
         return {
+            **dict.fromkeys(sorted(COMMON_DIAGNOSTIC_KEYS)),
+            "health": session.state if session else "unknown",
+            "mode": "live",
             "state": session.state if session else "unknown",
             "dropped_inbound": session.dropped_inbound if session else 0,
             "failed_inbound": session.failed_inbound if session else 0,
