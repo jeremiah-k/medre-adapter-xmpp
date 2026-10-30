@@ -5,6 +5,7 @@ from medre.adapter_spec import AdapterSpec, SymbolRef
 
 def adapter_spec() -> AdapterSpec:
     return AdapterSpec(
+        api_version=1,
         transport="xmpp",
         config=SymbolRef("medre.adapters.xmpp.config", "XMPPConfig"),
         runtime_config=None,
