@@ -3,6 +3,9 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    # checkov:skip=CKV_GHA_7:core_ref selects the medre source revision to qualify — the
+    # same trust level as choosing a branch to test. It is consumed only by
+    # actions/checkout `ref:` and never interpolated into a run: step.
     inputs:
       core_ref:
         description: Exact MEDRE revision to qualify for this run (defaults to main)
@@ -44,8 +47,8 @@ jobs:
       - name: Check Python quality and whitespace
         if: matrix.mode == 'fake' && matrix.python == '3.13'
         run: |
-          uvx --from ruff==0.16.9 ruff check src tests
-          uvx --from black==26.5.1 black --check src tests
+          uvx --from ruff==0.17.3 ruff check src tests
+          uvx --from black==26.10.1 black --check src tests
           git show --format= --check HEAD
       - name: Install locked core test environment
         run: uv sync --project .core --locked --extra dev

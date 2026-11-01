@@ -13,10 +13,7 @@
       "type": "boolean"
     },
     "adapter_kind": {
-      "enum": [
-        "real",
-        "fake"
-      ]
+      "enum": ["real", "fake"]
     },
     "jid": {
       "type": "string"
@@ -46,17 +43,11 @@
       "minLength": 1
     },
     "host": {
-      "type": [
-        "string",
-        "null"
-      ],
+      "type": ["string", "null"],
       "minLength": 1
     },
     "port": {
-      "type": [
-        "integer",
-        "null"
-      ],
+      "type": ["integer", "null"],
       "minimum": 1,
       "maximum": 65535
     },

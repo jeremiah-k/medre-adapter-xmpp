@@ -11,44 +11,26 @@
       "type": "string"
     },
     "nickname": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": ["string", "null"]
     },
     "message_type": {
-      "enum": [
-        "chat",
-        "normal",
-        "groupchat"
-      ]
+      "enum": ["chat", "normal", "groupchat"]
     },
     "stanza_id": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": ["string", "null"]
     },
     "room_stanza_id": {
-      "type": [
-        "string",
-        "null"
-      ],
+      "type": ["string", "null"],
       "description": "Room-assigned stanza ID from a room advertising XEP-0359 at receipt time; absent for unverified namespaces."
     },
     "origin_id": {
-      "type": [
-        "string",
-        "null"
-      ],
+      "type": ["string", "null"],
       "description": "Origin-generated ID retained independently of a server-rewritten stanza ID."
     },
     "relay": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "bridge_context"
-      ],
+      "required": ["bridge_context"],
       "properties": {
         "bridge_context": {
           "$ref": "#/$defs/BridgeContext"
@@ -67,11 +49,7 @@
     "BridgeContext": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "schema_version",
-        "source",
-        "relations"
-      ],
+      "required": ["schema_version", "source", "relations"],
       "properties": {
         "schema_version": {
           "const": 1
@@ -105,10 +83,7 @@
           "maxLength": 1024
         },
         "platform": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "maxLength": 1024
         },
         "canonical_event_id": {
@@ -117,45 +92,27 @@
           "maxLength": 1024
         },
         "channel": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "maxLength": 1024
         },
         "sender_id": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "maxLength": 1024
         },
         "sender_name": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "maxLength": 1024
         },
         "sender_short_name": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "maxLength": 1024
         },
         "sender_verification": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "maxLength": 1024
         },
         "origin_label": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "maxLength": 1024
         },
         "native_ref": {
@@ -186,17 +143,11 @@
           "maxLength": 1024
         },
         "target_event_id": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "maxLength": 1024
         },
         "key": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "maxLength": 1024
         },
         "target_native_ref": {
@@ -227,10 +178,7 @@
           "maxLength": 1024
         },
         "native_channel_id": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "maxLength": 1024
         },
         "native_message_id": {
@@ -239,10 +187,7 @@
           "maxLength": 1024
         },
         "native_thread_id": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "maxLength": 1024
         }
       }
