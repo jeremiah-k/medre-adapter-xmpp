@@ -1,12 +1,35 @@
 """Lazy registration against released MEDRE contracts."""
 
-from medre.adapter_spec import AdapterSpec, SymbolRef
+from medre.adapter_spec import AdapterSpec, NativeSetupField, SymbolRef
 
 
 def adapter_spec() -> AdapterSpec:
     return AdapterSpec(
         api_version=1,
         transport="xmpp",
+        native_setup_fields=(
+            NativeSetupField("jid", "Account JID"),
+            NativeSetupField(
+                "password",
+                "Password (blank uses an environment override)",
+                required=False,
+                secret=True,
+            ),
+            NativeSetupField(
+                "nickname", "Room nickname (blank uses medre)", required=False
+            ),
+            NativeSetupField(
+                "host",
+                "Host override (blank uses DNS SRV discovery; requires a port)",
+                required=False,
+            ),
+            NativeSetupField(
+                "port",
+                "Port override (blank uses DNS SRV discovery; requires a host)",
+                required=False,
+                numeric=True,
+            ),
+        ),
         config=SymbolRef("medre.adapters.xmpp.config", "XMPPConfig"),
         runtime_config=None,
         adapter=SymbolRef("medre.adapters.xmpp.adapter", "XMPPAdapter"),
