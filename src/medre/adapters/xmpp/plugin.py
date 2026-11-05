@@ -1,10 +1,38 @@
 """Lazy registration against released MEDRE contracts."""
 
+from dataclasses import replace
+from typing import Any
+
+from medre import adapter_spec as registration
 from medre.adapter_spec import AdapterSpec, SymbolRef
 
 
 def adapter_spec() -> AdapterSpec:
-    return AdapterSpec(
+    field_type = getattr(registration, "NativeSetupField", None)
+    native_setup: tuple[Any, ...] = ()
+    if field_type is not None and hasattr(AdapterSpec, "native_setup_fields"):
+        native_setup = (
+            field_type("jid", "Account JID"),
+            field_type(
+                "password",
+                "Password (blank uses an environment override)",
+                required=False,
+                secret=True,
+            ),
+            field_type("nickname", "Room nickname (blank uses medre)", required=False),
+            field_type(
+                "host",
+                "Host override (blank uses DNS SRV discovery; requires a port)",
+                required=False,
+            ),
+            field_type(
+                "port",
+                "Port override (blank uses DNS SRV discovery; requires a host)",
+                required=False,
+                numeric=True,
+            ),
+        )
+    spec = AdapterSpec(
         api_version=1,
         transport="xmpp",
         config=SymbolRef("medre.adapters.xmpp.config", "XMPPConfig"),
@@ -35,3 +63,4 @@ def adapter_spec() -> AdapterSpec:
         support_endpoint_fields=("jid", "rooms", "peers", "host", "port"),
         support_secret_fields=("password",),
     )
+    return replace(spec, native_setup_fields=native_setup) if native_setup else spec

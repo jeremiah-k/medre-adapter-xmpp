@@ -30,6 +30,14 @@ The catalog chooses package sources; runtime YAML contains connection settings.
 Create an account on an XMPP server with a publicly trusted TLS certificate and
 join permissions for the selected rooms. Protect the runtime config as private.
 
+`medre config native --transport xmpp --adapter-id chat` collects the connection
+fields offline: the account JID, an optional password, the optional room
+nickname, and optional host/port overrides. The form contacts no server, writes
+a private YAML file only after the typed config validates, and stores an entered
+password only in that file. Creating the TLS account, selecting rooms and peers,
+and granting join permissions stay manual: the form references an existing
+account and cannot provision one.
+
 ```yaml
 adapters:
   xmpp:
@@ -44,11 +52,12 @@ adapters:
 ```
 
 Set `MEDRE_ADAPTER__CHAT__PASSWORD` in the process environment through the secret
-management mechanism used for the deployment. Both the account's domain and
-configured conversations use prepared JIDs. Host and port overrides are optional
-and must appear together; omit both to use DNS SRV discovery. The connection
-requires verified TLS and offers no plaintext or certificate-check bypass.
-Transport encryption is not end-to-end encryption.
+management mechanism used for the deployment; an environment override keeps
+precedence over a password stored in the file. Both the account's
+domain and configured conversations use prepared JIDs. Host and port overrides
+are optional and must appear together; omit both to use DNS SRV discovery. The
+connection requires verified TLS and offers no plaintext or certificate-check
+bypass. Transport encryption is not end-to-end encryption.
 
 Use `medre config bridge` to connect the instance to another configured adapter.
 Use the room's bare JID as its context, or a configured peer's bare JID for a
