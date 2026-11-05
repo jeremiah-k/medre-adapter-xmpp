@@ -1,35 +1,42 @@
 """Lazy registration against released MEDRE contracts."""
 
-from medre.adapter_spec import AdapterSpec, NativeSetupField, SymbolRef
+from dataclasses import replace
+from typing import Any
+
+from medre import adapter_spec as registration
+from medre.adapter_spec import AdapterSpec, SymbolRef
 
 
 def adapter_spec() -> AdapterSpec:
-    return AdapterSpec(
-        api_version=1,
-        transport="xmpp",
-        native_setup_fields=(
-            NativeSetupField("jid", "Account JID"),
-            NativeSetupField(
+    field_type = getattr(registration, "NativeSetupField", None)
+    native_setup: tuple[Any, ...] = ()
+    if field_type is not None and hasattr(AdapterSpec, "native_setup_fields"):
+        native_setup = (
+            field_type("jid", "Account JID"),
+            field_type(
                 "password",
                 "Password (blank uses an environment override)",
                 required=False,
                 secret=True,
             ),
-            NativeSetupField(
+            field_type(
                 "nickname", "Room nickname (blank uses medre)", required=False
             ),
-            NativeSetupField(
+            field_type(
                 "host",
                 "Host override (blank uses DNS SRV discovery; requires a port)",
                 required=False,
             ),
-            NativeSetupField(
+            field_type(
                 "port",
                 "Port override (blank uses DNS SRV discovery; requires a host)",
                 required=False,
                 numeric=True,
             ),
-        ),
+        )
+    spec = AdapterSpec(
+        api_version=1,
+        transport="xmpp",
         config=SymbolRef("medre.adapters.xmpp.config", "XMPPConfig"),
         runtime_config=None,
         adapter=SymbolRef("medre.adapters.xmpp.adapter", "XMPPAdapter"),
@@ -58,3 +65,4 @@ def adapter_spec() -> AdapterSpec:
         support_endpoint_fields=("jid", "rooms", "peers", "host", "port"),
         support_secret_fields=("password",),
     )
+    return replace(spec, native_setup_fields=native_setup) if native_setup else spec

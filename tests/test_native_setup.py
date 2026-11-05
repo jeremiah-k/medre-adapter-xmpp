@@ -4,6 +4,7 @@ import stat
 
 import pytest
 
+from medre import adapter_spec as registration
 from medre.adapters.xmpp.plugin import adapter_spec
 
 
@@ -72,7 +73,9 @@ def _run_native_form(monkeypatch, tmp_path, answers, secret=""):
     return output, parse_yaml_config(output.read_text())["adapters"]["xmpp"]["chat"]
 
 
-def test_native_form_validates_a_complete_xmpp_connection(monkeypatch, tmp_path):
+def test_native_form_validates_a_complete_xmpp_connection(
+    monkeypatch, tmp_path, capsys
+):
     output, values = _run_native_form(
         monkeypatch,
         tmp_path,
@@ -86,6 +89,8 @@ def test_native_form_validates_a_complete_xmpp_connection(monkeypatch, tmp_path)
     assert values["host"] == "xmpp.example.org"
     assert values["port"] == 5222
     assert stat.S_IMODE(output.stat().st_mode) == 0o600
+    captured = capsys.readouterr()
+    assert "test-only-password" not in captured.out + captured.err
 
 
 def test_native_form_keeps_an_unset_password_out_of_the_file(monkeypatch, tmp_path):
@@ -113,3 +118,37 @@ def test_native_form_rejects_invalid_connection_values(monkeypatch, tmp_path, an
         _run_native_form(monkeypatch, tmp_path, answers)
     assert excinfo.value.code == 2
     assert not (tmp_path / "connection.yaml").exists()
+
+
+def test_older_core_without_native_form_still_discovers_provider(monkeypatch):
+    monkeypatch.delattr(registration, "NativeSetupField", raising=False)
+    spec = adapter_spec()
+    assert spec.transport == "xmpp"
+    assert not spec.native_setup_fields
+    assert spec.config.load().__name__ == "XMPPConfig"
+
+
+def test_older_core_without_native_setup_fields_still_discovers_provider(monkeypatch):
+    from medre.adapters.xmpp import plugin
+
+    class LegacyAdapterSpec:
+        def __init__(self, **fields):
+            assert "native_setup_fields" not in fields
+            self.transport = fields["transport"]
+
+    monkeypatch.setattr(plugin, "AdapterSpec", LegacyAdapterSpec)
+    spec = plugin.adapter_spec()
+    assert spec.transport == "xmpp"
+
+
+def test_native_form_never_imports_transport_sdks(monkeypatch, tmp_path):
+    import builtins
+
+    original_import = builtins.__import__
+
+    def guarded_import(name, *args, **kwargs):
+        assert name.split(".", 1)[0] not in {"slixmpp", "aiodns", "pycares"}, name
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
+    _run_native_form(monkeypatch, tmp_path, ["bridge@example.org/medre", "", "", ""])

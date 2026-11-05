@@ -14,3 +14,6 @@ TLS account, choosing `rooms` and `peers`, and granting room join permissions
 remain manual steps. Room and peer lists are tuple-valued config fields the
 single-value form prompts cannot express, so they stay in the documented manual
 configuration path.
+
+Registration stays compatible with older core contracts that lack optional
+native-form metadata; manual YAML remains available on those installations.
