@@ -19,9 +19,7 @@ def adapter_spec() -> AdapterSpec:
                 required=False,
                 secret=True,
             ),
-            field_type(
-                "nickname", "Room nickname (blank uses medre)", required=False
-            ),
+            field_type("nickname", "Room nickname (blank uses medre)", required=False),
             field_type(
                 "host",
                 "Host override (blank uses DNS SRV discovery; requires a port)",
