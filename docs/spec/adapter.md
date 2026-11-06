@@ -109,6 +109,31 @@ invalidate readiness. Shutdown MUST cancel connection attempts, join handlers,
 keepalive schedules, the SDK filter worker, the reconnect task and ingress
 worker. Queued work is not durable and MUST NOT survive a session restart.
 
+### In-process session ownership states
+
+The SDK session MUST distinguish `NEW`, `STARTING`, `ACTIVE`, `STOPPING`,
+`STOPPED`, and `ABANDONED`. Health strings remain a separate observation of
+native connectivity. `STARTING` and `ACTIVE` alone permit inbound acceptance.
+A new start MAY follow a completely retired `STOPPED` session, but concurrent
+starts and any start while an earlier task remains active MUST be refused.
+
+Stop MUST wait at most its configured finite, nonnegative budget for owned
+workers to honor cancellation. Failure to retire them MUST leave their task
+references owned and the session `ABANDONED` with failed health. The session
+MUST reject outbound and inbound work and MUST NOT report a late `healthy`
+state in that condition. A subsequent stop MAY retry retirement, but native
+callbacks that ignore cancellation cannot be forcibly preempted by asyncio.
+An `ABANDONED` session MUST NOT restart until retirement has completed.
+The adapter MUST retain the failed-to-stop session object so a subsequent stop
+can retry cleanup; detaching that owner on failure is prohibited. The same
+shutdown deadline MUST cover waiting for another cleanup caller and retiring
+native work. Invalid budgets MUST be rejected before changing health observation.
+A failed or interrupted native close MUST retain its connection owner and MUST
+NOT authorize reconnect or reuse; a subsequent stop MAY retry native cleanup.
+Startup cancellation MUST propagate even if cleanup fails. Once stopping begins,
+remaining queued stanzas and unstarted typing-batch entries MUST NOT be admitted;
+a callback already in progress retains its existing ownership until it settles.
+
 ## Optional protocol features
 
 XEP-0085 defines chat state notifications, including typing. Those events are

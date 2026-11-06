@@ -75,7 +75,7 @@ async def test_native_room_ingress_and_direct_egress():
                 asyncio.Event(),
             )
         )
-        peer.send(
+        await peer.send(
             {"to": room, "type": "groupchat", "body": f"Native <xml> & 🦉 {nonce}"}
         )
         event = await asyncio.wait_for(observed.get(), 10)
