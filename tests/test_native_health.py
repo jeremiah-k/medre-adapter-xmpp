@@ -229,6 +229,12 @@ async def test_runner_cancellation_covers_cleanup_and_backoff(
             adapter.session._runner.cancel()
             await asyncio.gather(adapter.session._runner, return_exceptions=True)
             assert reports[-1].health == "failed"
+            from conftest import stanza
+            from medre.adapters.xmpp.codec import InboundStanza
+
+            adapter.session._enqueue(InboundStanza(stanza()))
+            assert adapter.session._queue.empty()
+            assert not adapter.session._accepting
     finally:
         release.set()
         await adapter.stop()

@@ -130,7 +130,9 @@ shutdown deadline MUST cover waiting for another cleanup caller and retiring
 native work. Invalid budgets MUST be rejected before changing health observation.
 A failed or interrupted native close MUST retain its connection owner and MUST
 NOT authorize reconnect or reuse; a subsequent stop MAY retry native cleanup.
-Startup cancellation MUST propagate even if cleanup fails. Once stopping begins,
+Unexpected runner cancellation MUST enter `ABANDONED` and reject fresh
+native ingress until explicit cleanup retires its owners. Startup cancellation
+MUST propagate even if cleanup fails. Once stopping begins,
 remaining queued stanzas and unstarted typing-batch entries MUST NOT be admitted;
 a callback already in progress retains its existing ownership until it settles.
 
