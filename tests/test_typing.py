@@ -10,7 +10,7 @@ import pytest
 
 from medre.adapters.xmpp.codec import InboundStanza, CLIENT
 from medre.adapters.xmpp.connection import SlixConnection
-from medre.adapters.xmpp.session import XMPPSession
+from medre.adapters.xmpp.session import XMPPSession, _SessionPhase
 from medre.adapters.xmpp.typing import CHATSTATES, activity_from_stanza
 from medre.core.contracts.typing import TypingTarget, TypingUpdate
 from conftest import stanza
@@ -168,7 +168,7 @@ async def test_direct_typing_requires_negotiated_native_support(config):
 async def test_typing_bursts_coalesce_without_consuming_message_queue_slots(config):
     """Optional traffic cannot replace canonical-message ingress under queue pressure."""
     session = XMPPSession(config, AsyncMock(), typing_receive=AsyncMock())
-    session._accepting = True
+    session._transition(_SessionPhase.STARTING)
     try:
         for number in range(1100):
             xml = state(sender=config.rooms[0] + "/actor-" + str(number))

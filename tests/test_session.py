@@ -181,44 +181,32 @@ async def test_cancelling_start_does_not_leave_connection_work(config):
     assert session._runner is session._worker is None
 
 
-async def test_cleanup_failure_does_not_end_the_reconnect_loop(config):
-    second_open = asyncio.Event()
+async def test_cleanup_failure_fences_reconnect_until_native_owner_retires(config):
     connections = []
 
     class FailingClose(Connection):
         async def close(self):
             self.close_calls += 1
+            if self.close_calls == 1:
+                raise RuntimeError("sdk teardown failed")
             self.closed.set()
-            raise RuntimeError("sdk teardown failed")
 
     def factory(*args):
-        if connections:
-            connection = Connection(*args)
-            original = connection.open
-
-            async def open_second():
-                await original()
-                second_open.set()
-
-            connection.open = open_second
-        else:
-            connection = FailingClose(*args)
+        connection = FailingClose(*args)
         connections.append(connection)
         return connection
 
-    async def receive(_):
-        pass
-
     session = XMPPSession(
-        replace(config, reconnect_delay_seconds=0.001),
-        receive,
-        connection_factory=factory,
+        config, lambda _: asyncio.sleep(0), connection_factory=factory
     )
     await session.start()
     connections[0].closed.set()
-    await asyncio.wait_for(second_open.wait(), 2)
-    assert session.state == "healthy"
-    assert session.reconnects == 1
-    assert connections[0].close_calls == 1
+    runner = session._runner
+    with pytest.raises(RuntimeError, match="teardown"):
+        await asyncio.wait_for(runner, 1)
+    assert session.state == "failed"
+    assert session.reconnects == 0
+    assert session._connection is connections[0]
+    assert len(connections) == 1
     await session.stop()
-    assert connections[1].close_calls == 1
+    assert connections[0].close_calls == 2

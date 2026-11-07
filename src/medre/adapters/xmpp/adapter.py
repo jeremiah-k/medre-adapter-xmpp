@@ -152,13 +152,21 @@ class XMPPAdapter(AdapterContract):
         self.session = factory(self.config, self._receive, **options)
         if isinstance(self.session, XMPPSession):
             self.session.set_health_callback(lambda: self._report_native_health(epoch))
+        session = self.session
         try:
-            await self.session.start()
+            await session.start()
             self._health_active = True
             self._report_native_health(epoch)
         except BaseException:
-            await self.session.stop()
-            self.session = None
+            try:
+                await session.stop()
+            except Exception:
+                ctx.logger.warning(
+                    "XMPP startup cleanup retains unfinished native work"
+                )
+            else:
+                if self.session is session:
+                    self.session = None
             raise
 
     async def _receive(self, packet: InboundStanza) -> None:
@@ -186,12 +194,19 @@ class XMPPAdapter(AdapterContract):
         await self.session.send_typing(update)
 
     async def stop(self, timeout: float = 5.0) -> None:
+        from .session import validate_stop_timeout
+
+        validate_stop_timeout(timeout)
         self._health_active = False
         self._health_epoch += 1
         self._reported_health = None
         if self.session is not None:
-            session, self.session = self.session, None
+            # Keep the native owner reachable when stop reports an unfinished
+            # task. A later stop must be able to retry; start stays fenced.
+            session = self.session
             await session.stop(timeout=timeout)
+            if self.session is session:
+                self.session = None
 
     async def deliver(self, result: RenderingResult) -> AdapterHandoffResult:
         payload = validate_payload(result, self.config)

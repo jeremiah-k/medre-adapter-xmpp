@@ -218,7 +218,12 @@ async def test_runner_cancellation_covers_cleanup_and_backoff(
         connection.closed.set()
         await asyncio.wait_for(entered.wait(), 3)
         if shutdown:
-            await adapter.stop()
+            if phase == "cleanup":
+                with pytest.raises(RuntimeError, match="cancellation-resistant"):
+                    await adapter.stop(timeout=0.01)
+                assert adapter.session is not None
+            else:
+                await adapter.stop()
             assert all(info.health != "failed" for info in reports)
         else:
             adapter.session._runner.cancel()
