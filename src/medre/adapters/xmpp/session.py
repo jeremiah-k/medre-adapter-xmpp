@@ -242,6 +242,8 @@ class XMPPSession:
             await self._run_connections()
         except asyncio.CancelledError:
             if self._accepting:
+                self._transition(_SessionPhase.STOPPING)
+                self._transition(_SessionPhase.ABANDONED)
                 self._set_state("failed")
             raise
 
