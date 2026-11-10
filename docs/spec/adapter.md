@@ -262,3 +262,18 @@ remain available. Unobserved connection state, uncounted delivery failures,
 and unavailable reconnect/error details MUST remain `None`, rather than
 fabricated success, zero counts or inferred remote reachability. Cumulative
 `reconnects` MUST NOT be relabeled as consecutive `reconnect_attempts`.
+
+Source-owned public native facts may be carried within the same MEDRE context
+extension as a `<native_facts namespace="SOURCE">` child of `<source>`.
+The child's character data contains a compact JSON mapping of at most twelve
+bounded scalar fields, with ordinary XML escaping and the existing 16 KiB wire
+budget. These are untrusted remote hints, never stanza-origin or relation proof.
+
+Optional relay context MUST be representable within the UTF-8 durable payload
+and serialized XML budgets. Invalid Unicode claims, including lone surrogates
+escaped inside JSON public facts, MUST be omitted without dropping native text.
+
+When rendering supplied source attribution, origin-label precedence MUST be the
+explicit route/context label, then the attribution snapshot label, then the
+configured source label. Only `None` falls through; an explicit empty label
+MUST be preserved at each level.

@@ -161,3 +161,161 @@ def test_invalid_saved_context_is_rejected_before_send(config, value):
     assert decode_context(value) is None
     with pytest.raises(AdapterPermanentError, match="relay context"):
         validate_payload(result, config)
+
+
+@pytest.mark.parametrize("portnum", [1, 1.0])
+def test_xml_roundtrips_approved_source_native_facts(config, portnum):
+    """Public source-owned facts share the core envelope without leaking secrets."""
+    value = claim(config, source_sender_label="Alice")
+    value["source"]["native_facts"] = {
+        "namespace": "meshtastic",
+        "fields": {"portnum": portnum, "meshnet_label": "East <&>"},
+    }
+    wire = stanza()
+    append_context(wire, encode_context(value))
+    received = extract_context(fromstring(tostring(wire)))
+    assert received == value
+    assert type(received["source"]["native_facts"]["fields"]["portnum"]) is int
+    assert b"native_facts" in tostring(wire)
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        {"namespace": "meshtastic", "fields": {"credential": {"secret": "x"}}},
+        {"namespace": "meshtastic", "fields": {"portnum": 2**50}},
+        {"namespace": "meshtastic", "fields": {"portnum": "x" * 257}},
+        {"namespace": "../bad", "fields": {"portnum": 1}},
+    ],
+)
+def test_xml_rejects_invalid_public_source_facts(config, invalid):
+    """Untrusted XML does not promote unbounded or structured native packet data."""
+    value = claim(config)
+    value["source"]["native_facts"] = invalid
+    assert encode_context(value) is None
+
+
+def test_xml_rejects_duplicate_native_facts_nodes(config):
+    """Conflicting peer claims must not be resolved by last-writer-wins."""
+    value = claim(config)
+    value["source"]["native_facts"] = {
+        "namespace": "meshtastic",
+        "fields": {"portnum": 1},
+    }
+    wire = stanza()
+    append_context(wire, encode_context(value))
+    source = wire.find(f"{{{NAMESPACE}}}context").find(f"{{{NAMESPACE}}}source")
+    node = source.find(f"{{{NAMESPACE}}}native_facts")
+    source.append(deepcopy(node))
+    assert extract_context(wire) is None
+
+
+def test_xml_rejects_duplicate_fact_keys_inside_json(config):
+    value = claim(config)
+    value["source"]["native_facts"] = {
+        "namespace": "meshtastic",
+        "fields": {"portnum": 1},
+    }
+    wire = stanza()
+    append_context(wire, encode_context(value))
+    node = (
+        wire.find(f"{{{NAMESPACE}}}context")
+        .find(f"{{{NAMESPACE}}}source")
+        .find(f"{{{NAMESPACE}}}native_facts")
+    )
+    node.text = '{"portnum":1,"portnum":10}'
+    assert extract_context(wire) is None
+
+
+@pytest.mark.parametrize(
+    "origin,expected", [(None, "Remote"), ("", ""), ("Route", "Route")]
+)
+async def test_embedding_attribution_reaches_xmpp_stanza(config, origin, expected):
+    original = XMPPCodec(config).decode(stanza(), timestamp=NOW)
+    result = await XMPPRenderer({config.adapter_id: config}).render(
+        original,
+        context(
+            config,
+            source_origin_label=origin,
+            source_attribution=RelayAttribution(
+                source_platform="meshtastic",
+                source_sender_label="Alice",
+                source_sender_short_label="AL",
+                source_origin_label="Remote",
+            ),
+        ),
+    )
+    wire = stanza()
+    append_context(wire, result.payload["bridge_context"])
+    source = extract_context(wire)["source"]
+    assert source["sender_name"] == "Alice"
+    assert source["sender_short_name"] == "AL"
+    assert source["origin_label"] == expected
+
+
+@pytest.mark.parametrize(
+    "text", ["East\nWest", "tabs\tand\rreturns", "A\x00B", "café 🦉"]
+)
+def test_json_native_facts_preserve_strings_that_are_not_xml_attributes(config, text):
+    value = claim(config)
+    value["source"]["native_facts"] = {"namespace": "public", "fields": {"label": text}}
+    wire = stanza()
+    append_context(wire, encode_context(value))
+    assert extract_context(fromstring(tostring(wire))) == value
+
+
+@pytest.mark.parametrize("text", ["\ud800", "\udfff"])
+def test_unencodable_public_fact_is_omitted_without_losing_native_message(config, text):
+    value = claim(config)
+    value["source"]["native_facts"] = {"namespace": "public", "fields": {"label": text}}
+    assert encode_context(value) is None
+
+    # The XML itself is valid: the surrogate arrives escaped inside JSON text.
+    safe = claim(config)
+    safe["source"]["native_facts"] = {
+        "namespace": "public",
+        "fields": {"label": "safe"},
+    }
+    wire = stanza()
+    append_context(wire, encode_context(safe))
+    wire.find(
+        f"{{{NAMESPACE}}}context/{{{NAMESPACE}}}source/{{{NAMESPACE}}}native_facts"
+    ).text = json.dumps({"label": text})
+    received = XMPPCodec(config).decode(fromstring(tostring(wire)), timestamp=NOW)
+    assert received is not None
+    assert received.payload["body"] == wire.find("{jabber:client}body").text
+    assert "bridge_context" not in received.metadata.native.data["xmpp"].get(
+        "relay", {}
+    )
+    msgspec.json.encode(received)
+
+
+@pytest.mark.parametrize("context_label", [None, "", "Route"])
+@pytest.mark.parametrize("snapshot_label", [None, "", "Snapshot"])
+async def test_supplied_attribution_preserves_registry_origin(
+    config, context_label, snapshot_label
+):
+    """Preserve registry fallback and explicit empty labels in XML context."""
+    original = XMPPCodec(config).decode(stanza(), timestamp=NOW)
+    sender = XMPPRenderer(
+        {config.adapter_id: config},
+        {config.adapter_id: SimpleNamespace(platform="xmpp", origin_label="Registry")},
+    )
+    rendered = await sender.render(
+        original,
+        context(
+            config,
+            source_origin_label=context_label,
+            source_attribution=RelayAttribution(
+                source_sender_label="Alice", source_origin_label=snapshot_label
+            ),
+        ),
+    )
+    source = decode_context(rendered.payload["bridge_context"])["source"]
+    expected = (
+        context_label
+        if context_label is not None
+        else snapshot_label if snapshot_label is not None else "Registry"
+    )
+    assert source["origin_label"] == expected
+    assert source["sender_name"] == "Alice"
