@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any
 
 from medre.adapters.metadata import project_source_fields
@@ -97,6 +98,13 @@ class XMPPRenderer:
         attr = build_relay_attribution(
             event, source_origin_label=label, projected_fields=projected
         )
+        if ctx.source_attribution is not None:
+            source = ctx.source_attribution
+            if source.source_origin_label is not None:
+                label = source.source_origin_label
+            if ctx.source_origin_label is not None:
+                label = ctx.source_origin_label
+            attr = replace(source, source_origin_label=label)
         prefix = format_relay_prefix(config.relay_prefix, attr)
         if prefix.formatting_error:
             raise ValueError("Invalid XMPP relay prefix template")

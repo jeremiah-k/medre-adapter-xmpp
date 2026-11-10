@@ -19,6 +19,15 @@ NAMESPACE = "urn:medre:bridge-context:1"
 MAX_CONTEXT_BYTES = 16384
 
 
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate relay context field")
+        result[key] = value
+    return result
+
+
 def _element(name: str) -> str:
     """Qualify each extension element independently of the stanza namespace."""
     return f"{{{NAMESPACE}}}{name}"
@@ -36,6 +45,11 @@ def _xml_context(context: dict[str, Any]) -> Element:
     ref = context["source"]["native_ref"]
     if ref is not None:
         SubElement(source, _element("native_ref"), _attributes(ref))
+    facts = context["source"].get("native_facts")
+    if facts is not None:
+        SubElement(
+            source, _element("native_facts"), {"namespace": facts["namespace"]}
+        ).text = json.dumps(facts["fields"], ensure_ascii=True, separators=(",", ":"))
     relations = SubElement(root, _element("relations"))
     for hint in context["relations"]:
         relation = SubElement(relations, _element("relation"), _attributes(hint))
@@ -53,10 +67,14 @@ def _xml_safe(value: Any) -> bool:
     if isinstance(value, str):
         return plain_text(value) and not any(char in value for char in "\t\n\r")
     if isinstance(value, dict):
-        return all(_xml_safe(item) for item in value.values())
+        # Native facts are JSON text, whose scalar strings are ASCII-escaped.
+        # Attribute restrictions apply only to the other context values.
+        return all(
+            _xml_safe(item) for key, item in value.items() if key != "native_facts"
+        )
     if isinstance(value, list):
         return all(_xml_safe(item) for item in value)
-    return value is None or type(value) is int
+    return value is None or type(value) in (int, bool)
 
 
 def _wire_length(root: Element) -> int:
@@ -86,10 +104,14 @@ def encode_context(value: object) -> str | None:
     if context is None or not _xml_safe(context):
         return None
     text = json.dumps(context, ensure_ascii=False, separators=(",", ":"))
-    if (
-        len(text.encode("utf-8")) > MAX_CONTEXT_BYTES
-        or _wire_length(_xml_context(context)) > MAX_CONTEXT_BYTES
-    ):
+    try:
+        if (
+            len(text.encode("utf-8")) > MAX_CONTEXT_BYTES
+            or _wire_length(_xml_context(context)) > MAX_CONTEXT_BYTES
+        ):
+            return None
+    except UnicodeError:
+        # Escaped JSON can contain lone surrogates, which are not UTF-8 text.
         return None
     return text
 
@@ -101,7 +123,9 @@ def decode_context(value: object) -> dict[str, Any] | None:
     try:
         if len(value.encode("utf-8")) > MAX_CONTEXT_BYTES:
             return None
-        context = normalize_bridge_context(json.loads(value))
+        context = normalize_bridge_context(
+            json.loads(value, object_pairs_hook=_unique_object)
+        )
         return context if encode_context(context) is not None else None
     except (ValueError, UnicodeError, RecursionError):
         return None
@@ -138,13 +162,27 @@ def extract_context(stanza: Element) -> dict[str, Any] | None:
     source: dict[str, Any] = dict(sources[0].attrib)
     try:
         source["native_ref"] = _reference(sources[0], "native_ref")
+        native_facts = sources[0].findall(_element("native_facts"))
+        if len(native_facts) > 1:
+            raise ValueError("Ambiguous native facts")
+        if native_facts:
+            node = native_facts[0]
+            if set(node.attrib) != {"namespace"} or list(node):
+                raise ValueError("Malformed native facts")
+            source["native_facts"] = {
+                "namespace": node.attrib["namespace"],
+                "fields": json.loads(
+                    node.text or "null", object_pairs_hook=_unique_object
+                ),
+            }
         relations = []
         for node in groups[0].findall(_element("relation")):
             hint: dict[str, Any] = dict(node.attrib)
             hint["target_native_ref"] = _reference(node, "target_native_ref")
             relations.append(hint)
-    except ValueError:
+    except (ValueError, TypeError, RecursionError):
         return None
-    return normalize_bridge_context(
+    context = normalize_bridge_context(
         {"schema_version": 1, "source": source, "relations": relations}
     )
+    return context if encode_context(context) is not None else None
