@@ -9,6 +9,7 @@ binding authority. Ordinary clients continue using the human-readable body.
 from __future__ import annotations
 
 import json
+import sys
 from typing import Any
 from xml.etree.ElementTree import Element, SubElement, tostring
 
@@ -83,14 +84,16 @@ def _wire_length(root: Element) -> int:
     The pinned Slixmpp serializer is the wire authority; SDK-free tiers fall
     back to ElementTree, whose attribute escaping differs. Those tiers never
     touch an XMPP socket, and SDK-marked tests pin the serializer's expansion.
-    No availability probe runs at import time, keeping the SDK-free plugin
-    chain importable without slixmpp.
+    The SDK serializer is used only after native startup has loaded it;
+    offline previews never import slixmpp.
     """
-    try:
-        from slixmpp.xmlstream.tostring import tostring as slix_tostring
-    except ImportError:
+    # Native startup loads the pinned serializer. Offline previews must not
+    # import an installed SDK just to measure optional metadata.
+    module = sys.modules.get("slixmpp.xmlstream.tostring")
+    serialize = getattr(module, "tostring", None)
+    if serialize is None:
         return len(tostring(root, encoding="utf-8"))
-    return len(slix_tostring(root).encode("utf-8"))
+    return len(serialize(root).encode("utf-8"))
 
 
 def encode_context(value: object) -> str | None:

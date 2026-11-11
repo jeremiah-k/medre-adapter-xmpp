@@ -290,6 +290,21 @@ def test_unencodable_public_fact_is_omitted_without_losing_native_message(config
     msgspec.json.encode(received)
 
 
+def test_context_sizing_never_imports_a_transport_sdk(config, monkeypatch):
+    import builtins
+
+    original_import = builtins.__import__
+
+    def guard(name, *args, **kwargs):
+        if name == "slixmpp" or name.startswith("slixmpp."):
+            pytest.fail("Pure context sizing must not import Slixmpp")
+        return original_import(name, *args, **kwargs)
+
+    value = claim(config)
+    monkeypatch.setattr(builtins, "__import__", guard)
+    assert encode_context(value) is not None
+
+
 @pytest.mark.parametrize("context_label", [None, "", "Route"])
 @pytest.mark.parametrize("snapshot_label", [None, "", "Snapshot"])
 async def test_supplied_attribution_preserves_registry_origin(

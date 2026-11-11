@@ -273,6 +273,10 @@ Optional relay context MUST be representable within the UTF-8 durable payload
 and serialized XML budgets. Invalid Unicode claims, including lone surrogates
 escaped inside JSON public facts, MUST be omitted without dropping native text.
 
+Offline rendering and preview MUST NOT import an installed transport SDK to
+size optional context. After native startup loads the SDK serializer, its wire
+size remains authoritative for context validation before sending.
+
 When rendering supplied source attribution, origin-label precedence MUST be the
 explicit route/context label, then the attribution snapshot label, then the
 configured source label. Only `None` falls through; an explicit empty label
