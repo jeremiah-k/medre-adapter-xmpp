@@ -118,7 +118,7 @@ requirements, lockfiles or CI variables.
 
 For an existing Python environment, install the chosen core checkout and this
 provider using that interpreter's pip interface. The deterministic suite needs
-core's dev dependencies; the SDK tier additionally needs Slixmpp 1.17.0.
+core's dev dependencies; the SDK tier additionally needs the pinned Slixmpp SDK.
 CI checks released core contracts on Python 3.11–3.14 with SDK-free and native SDK
 jobs. `core_ref` is a one-run qualification input, not a committed dependency.
 An authenticated live-server test is separate from these offline checks.
