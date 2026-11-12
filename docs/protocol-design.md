@@ -1,6 +1,6 @@
 # Protocol choices and extension seams
 
-The provider uses [Slixmpp 1.17.0](https://pypi.org/project/slixmpp/1.17.0/), an
+The provider uses [the pinned Slixmpp](https://pypi.org/project/slixmpp/), an
 async Python XMPP implementation, so MEDRE does not implement DNS discovery,
 SASL, TLS negotiation, XML streams or MUC from scratch. The SDK is pinned in the
 provider metadata; MEDRE core remains independent of that dependency.
