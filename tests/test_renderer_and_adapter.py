@@ -159,11 +159,11 @@ async def test_configured_budget_is_shared_by_planning_and_health(config):
 @pytest.mark.parametrize(
     "payload,expected",
     [
-        ({"body": "current", "text": "legacy"}, "legacy"),
+        ({"body": "current", "text": "unstyled"}, "unstyled"),
         (
             {
                 "body": "current",
-                "text": "legacy",
+                "text": "unstyled",
                 "formatting": {"version": 1, "spans": []},
             },
             "current",
@@ -186,8 +186,8 @@ async def test_xmpp_styling_and_text_selection_agree(config, payload, expected):
     "payload",
     [
         {"body": "valid body", "text": 42},
-        {"body": 42, "text": "legacy"},
-        {"body": None, "text": "legacy", "formatting": {"version": 1, "spans": []}},
+        {"body": 42, "text": "unstyled"},
+        {"body": None, "text": "unstyled", "formatting": {"version": 1, "spans": []}},
     ],
 )
 async def test_malformed_canonical_text_never_becomes_native_content(config, payload):
