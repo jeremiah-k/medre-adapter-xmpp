@@ -88,6 +88,7 @@ class InboundStanza:
 
     stanza: Element
     trusted_rooms: frozenset[str] = frozenset()
+    transport_encrypted: bool = False
 
 
 class XMPPCodec:
@@ -100,6 +101,7 @@ class XMPPCodec:
         *,
         timestamp: datetime,
         trusted_rooms: frozenset[str] = frozenset(),
+        transport_encrypted: bool = False,
     ) -> CanonicalEvent | None:
         """Map direct and MUC messages; controls, history and echoes yield None."""
         if stanza.tag != f"{{{CLIENT}}}message":
@@ -222,6 +224,18 @@ class XMPPCodec:
                 ),
             )
         relay_context = extract_context(stanza)
+        # XEP-0421 occupant-id: the only stable sender anchor in anonymous
+        # MUCs. Ambiguous or malformed elements are omitted, never guessed.
+        occupant_id = None
+        occupant_ids = stanza.findall("{urn:xmpp:occupant-id:0}occupant-id")
+        if len(occupant_ids) == 1:
+            value = occupant_ids[0].get("id", "")
+            if (
+                value.strip()
+                and plain_text(value)
+                and len(value.encode("utf-8")) <= 1024
+            ):
+                occupant_id = value
         return CanonicalEvent(
             event_id=event_id,
             event_kind="message.created",
@@ -242,7 +256,11 @@ class XMPPCodec:
                 else None
             ),
             metadata=EventMetadata(
-                transport=TransportMetadata(protocol="xmpp", substrate="ip"),
+                transport=TransportMetadata(
+                    protocol="xmpp",
+                    substrate="ip",
+                    transport_encrypted=transport_encrypted,
+                ),
                 native=NativeMetadata(
                     data={
                         "xmpp": {
@@ -253,6 +271,14 @@ class XMPPCodec:
                             "stanza_id": native_id,
                             "origin_id": origin_id,
                             "room_stanza_id": room_id,
+                            "occupant_id": occupant_id,
+                            # Explicitly opted-in projection of bounded source
+                            # facts for core's transport-neutral bridge
+                            # context; arbitrary native data never crosses it.
+                            "public_facts": {
+                                "message_type": kind,
+                                "stanza_id_trusted": room_id is not None,
+                            },
                             **(
                                 {"relay": {"bridge_context": relay_context}}
                                 if relay_context is not None

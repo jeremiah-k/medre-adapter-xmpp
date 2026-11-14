@@ -27,6 +27,35 @@
       "type": ["string", "null"],
       "description": "Origin-generated ID retained independently of a server-rewritten stanza ID."
     },
+    "occupant_id": {
+      "type": ["string", "null"],
+      "description": "Server-assigned XEP-0421 occupant ID, the only stable sender anchor in anonymous MUCs. Ambiguous or malformed elements are omitted (null); it never replaces the occupant JID or grants identity authority."
+    },
+    "public_facts": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 12,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,63}(?![\\s\\S])"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string",
+            "maxLength": 256
+          },
+          {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "description": "Explicitly opted-in projection of bounded source facts for core's transport-neutral bridge context; the copy source for 'xmpp' public facts. Never raw native data."
+    },
     "relay": {
       "type": "object",
       "additionalProperties": false,
@@ -124,6 +153,9 @@
               "$ref": "#/$defs/BridgeNativeRef"
             }
           ]
+        },
+        "native_facts": {
+          "$ref": "#/$defs/BridgeNativeFacts"
         }
       }
     },
@@ -189,6 +221,41 @@
         "native_thread_id": {
           "type": ["string", "null"],
           "maxLength": 1024
+        }
+      }
+    },
+    "BridgeNativeFacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace", "fields"],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}(?![\\s\\S])"
+        },
+        "fields": {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 12,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_]{0,63}(?![\\s\\S])"
+          },
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          }
         }
       }
     }

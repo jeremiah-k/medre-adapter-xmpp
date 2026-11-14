@@ -177,6 +177,7 @@ class XMPPAdapter(AdapterContract):
             packet.stanza,
             timestamp=ctx.clock(),
             trusted_rooms=packet.trusted_rooms,
+            transport_encrypted=packet.transport_encrypted,
         )
         if event is not None:
             await self.publish_inbound(event)

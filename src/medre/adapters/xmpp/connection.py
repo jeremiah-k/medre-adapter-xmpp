@@ -217,7 +217,23 @@ class SlixConnection:
         activity = activity_from_stanza(stanza, self.config)
         if activity is not None and stanza.get("type") == "chat":
             self._typing_peers.add(activity.channel_id)
-        self.receive(InboundStanza(stanza, self.trusted_rooms))
+        self.receive(
+            InboundStanza(
+                stanza,
+                self.trusted_rooms,
+                transport_encrypted=self._stream_encrypted(),
+            )
+        )
+
+    def _stream_encrypted(self) -> bool:
+        """Read the SDK's own TLS evidence without negotiating anything.
+
+        Plaintext is disabled and STARTTLS/direct TLS are enforced, so a
+        connected stream is encrypted; this probes the negotiated socket,
+        whose ``ssl_object`` extra is set by the SDK only over TLS.
+        """
+        socket = getattr(self.client, "socket", None)
+        return isinstance(socket, ssl.SSLSocket)
 
     async def wait_closed(self) -> None:
         await self.closed.wait()

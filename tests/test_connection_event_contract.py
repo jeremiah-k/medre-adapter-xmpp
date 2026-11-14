@@ -116,3 +116,38 @@ async def test_rooms_without_id_discovery_keep_plain_text_readiness(
     await connection._session_started(None)
     assert await connection.ready is None
     assert not connection.trusted_rooms
+
+
+async def test_negotiated_tls_socket_marks_ingress_transport(config, client_stub):
+    import socket as socket_module
+    import ssl
+    from xml.etree.ElementTree import fromstring
+
+    received = []
+    connection = SlixConnection(config, received.append)
+    wire = (
+        '<message xmlns="jabber:client" type="groupchat" '
+        'from="room@conference.example.org/alice" id="x">'
+        "<body>hi</body></message>"
+    )
+    connection._message(SimpleNamespace(xml=fromstring(wire)))
+    assert received[0].transport_encrypted is False
+    plaintext = socket_module.socket()
+    connection.client.socket = plaintext
+    try:
+        connection._message(SimpleNamespace(xml=fromstring(wire)))
+        assert received[1].transport_encrypted is False
+        tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        tls_context.check_hostname = False
+        raw = socket_module.socket()
+        connection.client.socket = tls_context.wrap_socket(
+            raw, do_handshake_on_connect=False
+        )
+        try:
+            connection._message(SimpleNamespace(xml=fromstring(wire)))
+            assert received[2].transport_encrypted is True
+        finally:
+            connection.client.socket.close()
+            raw.close()
+    finally:
+        plaintext.close()
