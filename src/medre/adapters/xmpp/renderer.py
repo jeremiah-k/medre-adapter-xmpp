@@ -85,8 +85,27 @@ class XMPPRenderer:
             )
             degraded = degrade_relations_inline(event, text, represented=represented)
             if degraded != text:
+                if (
+                    event.event_kind not in {"message.reacted", "message.deleted"}
+                    and text
+                    and degraded.endswith(" " + text)
+                ):
+                    offset = len(degraded) - len(text)
+                    try:
+                        value = StyledText(
+                            degraded,
+                            tuple(
+                                TextSpan(
+                                    s.start + offset, s.end + offset, s.style, s.href
+                                )
+                                for s in value.spans
+                            ),
+                        )
+                    except ValueError:
+                        value = StyledText(degraded)
+                else:
+                    value = StyledText(degraded)
                 text = degraded
-                value = StyledText(text)
         if not text.strip():
             raise ValueError("XMPP message body must not be empty")
         attr_config = self.source_attribution.get(event.source_adapter)
