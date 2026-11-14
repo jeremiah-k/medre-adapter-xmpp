@@ -11,7 +11,7 @@ from medre.core.events.text import select_message_body
 from medre.core.events.text import StyledText, TextSpan
 from medre.core.rendering.attribution import (
     resolve_relay_attribution,
-    format_relay_prefix,
+    format_checked_relay_prefix,
 )
 from medre.core.rendering.bridge_context import build_bridge_context
 from .bridge_context import encode_context
@@ -123,7 +123,7 @@ class XMPPRenderer:
             source_attribution=ctx.source_attribution,
             projected_fields=projected,
         )
-        prefix = format_relay_prefix(config.relay_prefix, attr)
+        prefix = format_checked_relay_prefix(config.relay_prefix, attr)
         if prefix.formatting_error:
             raise ValueError("Invalid XMPP relay prefix template")
         plain = prefix.rendered_prefix + value.body
