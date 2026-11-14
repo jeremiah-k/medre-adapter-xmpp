@@ -16,7 +16,7 @@ from medre.core.rendering.attribution import (
 from medre.core.rendering.bridge_context import build_bridge_context
 from .bridge_context import encode_context
 from medre.core.rendering.relations import (
-    degrade_relations_inline,
+    compose_relation_text,
     destination_native_message_id,
 )
 from medre.core.rendering.renderer import RenderingContext, RenderingResult
@@ -83,7 +83,7 @@ class XMPPRenderer:
             represented = (
                 (reply_relations[0],) if reply_id is not None and not fallback else ()
             )
-            degraded = degrade_relations_inline(event, text, represented=represented)
+            degraded = compose_relation_text(event, text, represented=represented)
             if degraded != text:
                 if (
                     event.event_kind not in {"message.reacted", "message.deleted"}
