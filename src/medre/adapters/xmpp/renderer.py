@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import replace
 from typing import Any
 
 from medre.adapters.metadata import project_source_fields
@@ -11,12 +10,15 @@ from medre.core.events.canonical import CanonicalEvent
 from medre.core.events.text import select_message_body
 from medre.core.events.text import StyledText, TextSpan
 from medre.core.rendering.attribution import (
-    build_relay_attribution,
+    resolve_relay_attribution,
     format_relay_prefix,
 )
 from medre.core.rendering.bridge_context import build_bridge_context
 from .bridge_context import encode_context
-from medre.core.rendering.relations import degrade_relations_inline
+from medre.core.rendering.relations import (
+    degrade_relations_inline,
+    destination_native_message_id,
+)
 from medre.core.rendering.renderer import RenderingContext, RenderingResult
 
 from .styling import from_text, to_text
@@ -64,30 +66,30 @@ class XMPPRenderer:
         ]
         reply_id = None
         if ctx.delivery_strategy == "direct" and len(reply_relations) == 1:
-            ref = reply_relations[0].target_native_ref
+            candidate = destination_native_message_id(
+                reply_relations[0], ctx.target_adapter, ctx.target_channel
+            )
             if (
-                ref is not None
-                and ref.adapter == ctx.target_adapter
-                and ref.native_channel_id == ctx.target_channel
-                and isinstance(ref.native_message_id, str)
-                and ref.native_message_id.strip()
-                and plain_text(ref.native_message_id)
-                and len(ref.native_message_id.encode("utf-8")) <= 1024
+                candidate is not None
+                and plain_text(candidate)
+                and len(candidate.encode("utf-8")) <= 1024
             ):
-                reply_id = ref.native_message_id
+                reply_id = candidate
         fallback = ctx.delivery_strategy == "fallback_text" or (
             bool(reply_relations) and reply_id is None
         )
         value = StyledText.from_payload(event.payload)
-        if fallback:
-            text = degrade_relations_inline(event, text)
-            value = StyledText(text)
+        if event.relations:
+            represented = (
+                (reply_relations[0],) if reply_id is not None and not fallback else ()
+            )
+            degraded = degrade_relations_inline(event, text, represented=represented)
+            if degraded != text:
+                text = degraded
+                value = StyledText(text)
         if not text.strip():
             raise ValueError("XMPP message body must not be empty")
         attr_config = self.source_attribution.get(event.source_adapter)
-        label = ctx.source_origin_label
-        if label is None and attr_config is not None:
-            label = attr_config.origin_label
         native = dict(event.metadata.native.data) if event.metadata.native else {}
         projected = project_source_fields(
             native,
@@ -95,16 +97,13 @@ class XMPPRenderer:
             source_transport_id=event.source_transport_id,
             platform_hint=getattr(attr_config, "platform", None),
         )
-        attr = build_relay_attribution(
-            event, source_origin_label=label, projected_fields=projected
+        attr = resolve_relay_attribution(
+            event,
+            source_origin_label=ctx.source_origin_label,
+            configured_origin_label=getattr(attr_config, "origin_label", None),
+            source_attribution=ctx.source_attribution,
+            projected_fields=projected,
         )
-        if ctx.source_attribution is not None:
-            source = ctx.source_attribution
-            if source.source_origin_label is not None:
-                label = source.source_origin_label
-            if ctx.source_origin_label is not None:
-                label = ctx.source_origin_label
-            attr = replace(source, source_origin_label=label)
         prefix = format_relay_prefix(config.relay_prefix, attr)
         if prefix.formatting_error:
             raise ValueError("Invalid XMPP relay prefix template")
@@ -197,7 +196,19 @@ class XMPPRenderer:
                 "xmpp": {
                     "format": "plain" if unstyled else "xep-0393",
                     "attribution": "relay",
-                }
+                },
+                **(
+                    {
+                        "relay_prefix_template": prefix.template_used,
+                        "relay_prefix_rendered": prefix.rendered_prefix,
+                        "relay_prefix_variables_used": prefix.variables_used,
+                        "relay_prefix_missing_variables": prefix.missing_variables,
+                        "relay_prefix_unknown_variables": prefix.unknown_variables,
+                        "relay_prefix_formatting_error": prefix.formatting_error,
+                    }
+                    if config.relay_prefix
+                    else {}
+                ),
             },
             fallback_applied=(
                 (
