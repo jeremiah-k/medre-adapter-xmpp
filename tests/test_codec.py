@@ -271,3 +271,12 @@ def test_verified_room_ids_do_not_depend_on_occupant_nickname(config):
             second, timestamp=NOW, trusted_rooms=frozenset(config.rooms)
         ).event_id
     )
+
+
+@pytest.mark.parametrize("kind", ["chat", "normal"])
+def test_direct_peer_cannot_supply_an_anonymous_muc_occupant_id(config, kind):
+    wire = stanza(sender="alice@example.org/phone", kind=kind)
+    SubElement(wire, "{urn:xmpp:occupant-id:0}occupant-id", {"id": "untrusted"})
+    event = XMPPCodec(config).decode(wire, timestamp=NOW)
+    assert event is not None
+    assert event.metadata.native.data["xmpp"]["occupant_id"] is None

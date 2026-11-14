@@ -226,14 +226,19 @@ class SlixConnection:
         )
 
     def _stream_encrypted(self) -> bool:
-        """Read the SDK's own TLS evidence without negotiating anything.
-
-        Plaintext is disabled and STARTTLS/direct TLS are enforced, so a
-        connected stream is encrypted; this probes the negotiated socket,
-        whose ``ssl_object`` extra is set by the SDK only over TLS.
-        """
+        """Use actual SDK TLS objects, never the configured TLS intent."""
         socket = getattr(self.client, "socket", None)
-        return isinstance(socket, ssl.SSLSocket)
+        if isinstance(socket, (ssl.SSLSocket, ssl.SSLObject)):
+            return True
+        transport = getattr(self.client, "transport", None)
+        get_extra_info = getattr(transport, "get_extra_info", None)
+        if callable(get_extra_info):
+            try:
+                ssl_object = get_extra_info("ssl_object")
+            except (OSError, RuntimeError):
+                return False
+            return isinstance(ssl_object, (ssl.SSLSocket, ssl.SSLObject))
+        return False
 
     async def wait_closed(self) -> None:
         await self.closed.wait()

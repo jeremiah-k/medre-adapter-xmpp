@@ -228,7 +228,7 @@ class XMPPCodec:
         # MUCs. Ambiguous or malformed elements are omitted, never guessed.
         occupant_id = None
         occupant_ids = stanza.findall("{urn:xmpp:occupant-id:0}occupant-id")
-        if len(occupant_ids) == 1:
+        if kind == "groupchat" and len(occupant_ids) == 1:
             value = occupant_ids[0].get("id", "")
             if (
                 value.strip()

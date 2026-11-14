@@ -151,3 +151,36 @@ async def test_negotiated_tls_socket_marks_ingress_transport(config, client_stub
             raw.close()
     finally:
         plaintext.close()
+
+
+async def test_negotiated_tls_ssl_object_is_transport_evidence(config, client_stub):
+    import ssl
+    from xml.etree.ElementTree import fromstring
+
+    received = []
+    connection = SlixConnection(config, received.append)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    tls_object = context.wrap_bio(
+        ssl.MemoryBIO(), ssl.MemoryBIO(), server_hostname="example.org"
+    )
+    wire = fromstring(
+        '<message xmlns="jabber:client" type="chat" from="alice@example.org/phone">'
+        "<body>hi</body></message>"
+    )
+    connection.client.socket = tls_object
+    connection._message(SimpleNamespace(xml=wire))
+    assert received[-1].transport_encrypted is True
+    connection.client.socket = object()
+    connection.client.transport = SimpleNamespace(
+        get_extra_info=lambda name: tls_object if name == "ssl_object" else None
+    )
+    connection._message(SimpleNamespace(xml=wire))
+    assert received[-1].transport_encrypted is True
+    connection.client.transport = SimpleNamespace(get_extra_info=lambda name: object())
+    connection._message(SimpleNamespace(xml=wire))
+    assert received[-1].transport_encrypted is False
+    connection.client.transport = SimpleNamespace(
+        get_extra_info=lambda name: (_ for _ in ()).throw(RuntimeError("closed"))
+    )
+    connection._message(SimpleNamespace(xml=wire))
+    assert received[-1].transport_encrypted is False
