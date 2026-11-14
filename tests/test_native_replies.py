@@ -175,3 +175,43 @@ def test_direct_origin_id_survives_server_rewriting_and_rejects_ambiguity(config
     assert event.metadata.native.data["xmpp"]["stanza_id"] == "server-rewrite"
     SubElement(message, "{urn:xmpp:sid:0}origin-id", {"id": "conflict"})
     assert XMPPCodec(config).decode(message, timestamp=NOW) is None
+
+
+async def test_inline_relation_preserves_authored_inline_style(config):
+    from medre.core.events.text import StyledText, TextSpan
+
+    original = reply_event(config, adapter="foreign")
+    value = StyledText("answer 🦉", (TextSpan(0, 6, "strong"),))
+    original = msgspec.structs.replace(original, payload=value.to_payload())
+    result = await XMPPRenderer({config.adapter_id: config}).render(
+        original, ctx(config)
+    )
+    assert result.payload["body"] == "[replying to: parent café 🦉] *answer* 🦉"
+    assert "unstyled" not in result.payload
+    assert validate_payload(result, config) == result.payload
+    assert StyledText.from_payload(original.payload) == value
+
+
+@pytest.mark.parametrize("native_id", ["", "   ", "\t"])
+async def test_blank_native_reply_ids_degrade_before_payload_validation(
+    config, native_id
+):
+    original = reply_event(config)
+    rel = original.relations[0]
+    original = msgspec.structs.replace(
+        original,
+        relations=(
+            msgspec.structs.replace(
+                rel,
+                target_native_ref=NativeRef(
+                    config.adapter_id, config.rooms[0], native_id
+                ),
+            ),
+        ),
+    )
+    result = await XMPPRenderer({config.adapter_id: config}).render(
+        original, ctx(config)
+    )
+    assert "reply_id" not in result.payload
+    assert "parent café 🦉" in result.payload["body"]
+    assert validate_payload(result, config) == result.payload

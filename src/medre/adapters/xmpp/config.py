@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from medre.core.rendering.attribution import validate_relay_prefix
+
 import math
 from dataclasses import dataclass, field
 from collections.abc import Iterable
@@ -122,6 +124,7 @@ class XMPPConfig:
         for name in ("origin_label", "relay_prefix"):
             if not plain_text(getattr(self, name)):
                 raise ValueError(f"{name} must be XML text")
+        validate_relay_prefix(self.relay_prefix)
         return self
 
     def message_type(self, conversation: str | None) -> str:
