@@ -5,7 +5,7 @@ from dataclasses import replace
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from xml.etree.ElementTree import fromstring, tostring
+from xml.etree.ElementTree import SubElement, fromstring, tostring
 
 import msgspec
 import pytest
@@ -22,6 +22,7 @@ from medre.adapters.xmpp.bridge_context import (
 from medre.adapters.xmpp.codec import XMPPCodec
 from medre.adapters.xmpp.renderer import XMPPRenderer
 from medre.core.contracts.adapter import AdapterPermanentError
+from medre.core.events import EventRelation, NativeRef
 from medre.core.rendering.attribution import RelayAttribution
 from medre.core.rendering.bridge_context import build_bridge_context
 from medre.core.rendering.renderer import RenderingContext
@@ -126,6 +127,51 @@ def test_remote_relation_context_does_not_bind_a_native_reply(config):
     received = XMPPCodec(config).decode(wire, timestamp=NOW)
     assert received.metadata.native.data["xmpp"]["relay"]["bridge_context"]["relations"]
     assert not received.relations
+
+
+async def test_mixed_native_reply_roundtrip_does_not_reapply_relay_relation_hints(
+    config,
+):
+    """Readable secondary relations remain text after native XML re-ingestion."""
+    source = XMPPCodec(config).decode(stanza(), timestamp=NOW)
+    source = msgspec.structs.replace(
+        source,
+        relations=(
+            EventRelation(
+                "reply",
+                "parent",
+                NativeRef(config.adapter_id, config.peers[0], "native-parent"),
+                None,
+                "parent text",
+            ),
+            EventRelation("reaction", "other-parent", None, "👍", None),
+        ),
+    )
+    renderer = XMPPRenderer({config.adapter_id: config})
+    ctx = replace(context(config), target_channel=config.peers[0])
+    rendered = await renderer.render(source, ctx)
+    validate_payload(rendered, config)
+    wire = stanza(
+        kind="chat",
+        sender=config.peers[0] + "/phone",
+        body=rendered.payload["body"],
+    )
+    append_context(wire, rendered.payload["bridge_context"])
+    SubElement(wire, "{urn:xmpp:reply:0}reply", {"id": rendered.payload["reply_id"]})
+    fallback = SubElement(
+        wire, "{urn:xmpp:fallback:0}fallback", {"for": "urn:xmpp:reply:0"}
+    )
+    SubElement(
+        fallback,
+        "{urn:xmpp:fallback:0}body",
+        {"start": "0", "end": str(len(rendered.payload["reply_fallback"]))},
+    )
+    received = XMPPCodec(config).decode(fromstring(tostring(wire)), timestamp=NOW)
+    assert [relation.relation_type for relation in received.relations] == ["reply"]
+    assert received.payload["body"].count("reacted 👍 to an earlier message") == 1
+    relayed = await renderer.render(received, ctx)
+    assert relayed.payload["body"].count("reacted 👍 to an earlier message") == 1
+    assert relayed.payload["body"].count("Hello <XMPP> & friends") == 1
 
 
 @pytest.mark.parametrize(
