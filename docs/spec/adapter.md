@@ -12,7 +12,12 @@ a routed recipient.
 A room message's source identity is its occupant JID (`room@service/nickname`).
 Its conversation is the room's bare JID. A direct message's source identity and
 conversation are the sender's bare JID, retaining the same context across
-resource changes. Nicknames MUST NOT be promoted to account identities.
+resource changes. Nicknames MUST NOT be promoted to account identities. An
+XEP-0421 `occupant-id` supplied by the room is recorded in the native namespace
+as the only stable sender anchor in anonymous MUCs; ambiguous, empty or
+malformed elements are omitted rather than guessed, and a recorded occupant ID
+MUST NOT replace the occupant JID or grant identity, relation, or delivery
+authority.
 
 The codec MUST derive repeatable canonical IDs from the adapter, conversation,
 sender and an available message ID. In a MUC, a room-issued XEP-0359
@@ -53,6 +58,15 @@ The session MUST bound pending inbound work and report queue overflow and
 admission failures through counters and logs. It MUST NOT acknowledge durable
 admission, advance an archive cursor, or emit delivery receipts on overflow.
 The runtime remains authoritative for admission and persistence.
+
+Supplied native facts are recorded, not discarded. Each admitted event carries
+the receiving stream's negotiated TLS state on the canonical transport metadata
+(`transport_encrypted`), read from the SDK's negotiated socket at receipt time;
+it MUST NOT be presented as end-to-end encryption or bridge confidentiality. A
+bounded opted-in `public_facts` projection — the stanza `message_type` and
+whether the room-issued stanza-ID trust outcome applied — is the single source
+of xmpp facts for core's transport-neutral bridge context; arbitrary native
+data MUST NOT cross that boundary.
 
 ## Rendering and handoff
 
@@ -98,7 +112,10 @@ planning and health checks for real and fake adapter instances.
 Native startup MUST require credentials, verified TLS, and successful joins of
 all configured rooms before readiness. Plaintext fallback and certificate
 verification overrides are not configuration options. TLS protects the client
-connection; the adapter makes no end-to-end encryption claim.
+connection; the adapter makes no end-to-end encryption claim. The negotiated
+TLS state is observed from the SDK's socket rather than re-negotiated, and a
+non-TLS observation MUST be recorded honestly as an unencrypted transport
+instead of being assumed away.
 
 Slixmpp owns DNS SRV discovery, authentication, stanza parsing and MUC protocol
 handling. A host override MUST supply its port as well. The session owns bounded

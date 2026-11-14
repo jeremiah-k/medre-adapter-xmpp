@@ -88,6 +88,11 @@ or native transport delivery.
 - Correlate own MUC echoes with trusted room-issued IDs, with bounded waits;
   missing correlation does not turn a completed transport write into a retry.
 - Report local TLS transport writes separately from recipient delivery/read state.
+- Record supplied native metadata honestly: the negotiated TLS state on the
+  transport slot, the room's XEP-0421 occupant-id, and a bounded opted-in
+  `public_facts` projection (message type, stanza-ID trust outcome) feeding
+  core's bridge context. None of these imply end-to-end encryption or sender
+  authority.
 
 This live bridge does not recover offline messages or room archives. XHTML,
 attachments, presence, read receipts, native mutations,

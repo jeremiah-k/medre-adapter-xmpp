@@ -217,7 +217,28 @@ class SlixConnection:
         activity = activity_from_stanza(stanza, self.config)
         if activity is not None and stanza.get("type") == "chat":
             self._typing_peers.add(activity.channel_id)
-        self.receive(InboundStanza(stanza, self.trusted_rooms))
+        self.receive(
+            InboundStanza(
+                stanza,
+                self.trusted_rooms,
+                transport_encrypted=self._stream_encrypted(),
+            )
+        )
+
+    def _stream_encrypted(self) -> bool:
+        """Use actual SDK TLS objects, never the configured TLS intent."""
+        socket = getattr(self.client, "socket", None)
+        if isinstance(socket, (ssl.SSLSocket, ssl.SSLObject)):
+            return True
+        transport = getattr(self.client, "transport", None)
+        get_extra_info = getattr(transport, "get_extra_info", None)
+        if callable(get_extra_info):
+            try:
+                ssl_object = get_extra_info("ssl_object")
+            except (OSError, RuntimeError):
+                return False
+            return isinstance(ssl_object, (ssl.SSLSocket, ssl.SSLObject))
+        return False
 
     async def wait_closed(self) -> None:
         await self.closed.wait()

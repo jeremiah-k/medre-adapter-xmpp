@@ -20,6 +20,62 @@ def test_muc_identity_and_text_are_preserved(config):
     assert event.metadata.native.data["xmpp"]["nickname"] == "alice"
 
 
+def test_tls_stream_marks_transport_encryption(config):
+    """A TLS-encrypted receiving stream is recorded on the transport metadata."""
+    event = XMPPCodec(config).decode(stanza(), timestamp=NOW, transport_encrypted=True)
+    assert event.metadata.transport.transport_encrypted is True
+
+
+def test_occupant_id_is_recorded(config):
+    """XEP-0421 occupant-id is the only stable sender anchor in anonymous MUCs."""
+    wire = stanza()
+    SubElement(wire, "{urn:xmpp:occupant-id:0}occupant-id", {"id": "stable-oc"})
+    event = XMPPCodec(config).decode(wire, timestamp=NOW)
+    assert event.metadata.native.data["xmpp"]["occupant_id"] == "stable-oc"
+
+
+def test_ambiguous_or_malformed_occupant_ids_are_omitted(config):
+    wire = stanza()
+    for value in ("first", "second"):
+        SubElement(wire, "{urn:xmpp:occupant-id:0}occupant-id", {"id": value})
+    event = XMPPCodec(config).decode(wire, timestamp=NOW)
+    assert event.metadata.native.data["xmpp"]["occupant_id"] is None
+    blank = stanza()
+    SubElement(blank, "{urn:xmpp:occupant-id:0}occupant-id", {"id": " "})
+    event = XMPPCodec(config).decode(blank, timestamp=NOW)
+    assert event.metadata.native.data["xmpp"]["occupant_id"] is None
+    without = XMPPCodec(config).decode(stanza(), timestamp=NOW)
+    assert without.metadata.native.data["xmpp"]["occupant_id"] is None
+
+
+def test_public_facts_expose_message_type_and_trust_outcome(config):
+    untrusted = XMPPCodec(config).decode(stanza(), timestamp=NOW)
+    assert untrusted.metadata.native.data["xmpp"]["public_facts"] == {
+        "message_type": "groupchat",
+        "stanza_id_trusted": False,
+    }
+    trusted_room = stanza()
+    SubElement(
+        trusted_room,
+        "{urn:xmpp:sid:0}stanza-id",
+        {"by": config.rooms[0], "id": "room-id"},
+    )
+    trusted = XMPPCodec(config).decode(
+        trusted_room, timestamp=NOW, trusted_rooms=frozenset(config.rooms)
+    )
+    assert trusted.metadata.native.data["xmpp"]["public_facts"] == {
+        "message_type": "groupchat",
+        "stanza_id_trusted": True,
+    }
+    direct = XMPPCodec(config).decode(
+        stanza(sender="alice@example.org/phone", kind="chat"), timestamp=NOW
+    )
+    assert direct.metadata.native.data["xmpp"]["public_facts"] == {
+        "message_type": "chat",
+        "stanza_id_trusted": False,
+    }
+
+
 def test_sender_namespaces_prevent_colliding_event_ids(config):
     codec = XMPPCodec(config)
     first = codec.decode(stanza(), timestamp=NOW)
@@ -215,3 +271,12 @@ def test_verified_room_ids_do_not_depend_on_occupant_nickname(config):
             second, timestamp=NOW, trusted_rooms=frozenset(config.rooms)
         ).event_id
     )
+
+
+@pytest.mark.parametrize("kind", ["chat", "normal"])
+def test_direct_peer_cannot_supply_an_anonymous_muc_occupant_id(config, kind):
+    wire = stanza(sender="alice@example.org/phone", kind=kind)
+    SubElement(wire, "{urn:xmpp:occupant-id:0}occupant-id", {"id": "untrusted"})
+    event = XMPPCodec(config).decode(wire, timestamp=NOW)
+    assert event is not None
+    assert event.metadata.native.data["xmpp"]["occupant_id"] is None

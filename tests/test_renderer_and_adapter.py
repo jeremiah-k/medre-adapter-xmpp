@@ -96,6 +96,20 @@ async def test_adapter_only_transports_rendered_payload(config, context):
     assert (await adapter.health_check()).health == "unknown"
 
 
+async def test_ingress_transport_encryption_reaches_published_events(config, context):
+    ctx, events = context
+    session = SimpleNamespace(start=AsyncMock(), stop=AsyncMock(), state="healthy")
+    adapter = XMPPAdapter(config, session_factory=lambda *_: session)
+    await adapter.start(ctx)
+    try:
+        await adapter._receive(InboundStanza(stanza(), transport_encrypted=True))
+        assert events[0].metadata.transport.transport_encrypted is True
+        await adapter._receive(InboundStanza(stanza()))
+        assert events[1].metadata.transport.transport_encrypted is False
+    finally:
+        await adapter.stop()
+
+
 async def test_stopped_adapter_and_wrong_addresses_fail_before_send(config):
     adapter = XMPPAdapter(config)
     with pytest.raises(AdapterSendError):
