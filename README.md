@@ -116,8 +116,8 @@ uv run --no-sync medre dev test --sources /path/to/sources.yaml \
 
 The source catalog above adds the alias while the editable path selects the
 actual checkout. Use `dev sync --sdk` to install native dependencies, then
-`dev test ... xmpp -- -m xmpp_sdk -v` for pinned SDK contracts. Keep the same
-catalog and editable selection on both commands; a local `.medre-dev.yaml`
+the SDK-only selection in [contributing](CONTRIBUTING.md) for pinned SDK
+contracts. Keep the same catalog and editable selection on both commands; a local `.medre-dev.yaml`
 profile can remember them. No temporary core branch is recorded in package
 requirements, lockfiles or CI variables.
 
