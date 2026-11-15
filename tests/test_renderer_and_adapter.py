@@ -3,16 +3,16 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-
+from conftest import NOW, rendered, stanza
 from medre.core.contracts.adapter import AdapterPermanentError, AdapterSendError
 from medre.core.planning.capabilities import resolve_adapter_capabilities
 from medre.core.rendering.renderer import RenderingContext
 from medre.core.routing.models import RouteTarget
-from medre.adapters.xmpp.adapter import XMPPAdapter, CAPABILITIES
+
+from medre.adapters.xmpp.adapter import CAPABILITIES, XMPPAdapter
 from medre.adapters.xmpp.codec import InboundStanza, XMPPCodec
 from medre.adapters.xmpp.fake import FakeXMPPAdapter
 from medre.adapters.xmpp.renderer import XMPPRenderer
-from conftest import NOW, rendered, stanza
 
 
 def render_context(**updates):

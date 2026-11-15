@@ -6,9 +6,9 @@ from datetime import datetime, timezone
 from xml.etree.ElementTree import Element, SubElement
 
 import pytest
-
 from medre.core.contracts.adapter import AdapterContext
 from medre.core.rendering.renderer import RenderingResult
+
 from medre.adapters.xmpp.codec import CLIENT
 from medre.adapters.xmpp.config import XMPPConfig
 

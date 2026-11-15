@@ -51,8 +51,9 @@ async def test_room_echo_is_registered_before_write_and_not_promoted_to_ingress(
     assert await instance.send(payload(config)) == "room-id"
     assert not instance._echoes
     assert len(received) == 1  # Codec retains its separate own-echo suppression.
-    from medre.adapters.xmpp.codec import XMPPCodec
     from conftest import NOW
+
+    from medre.adapters.xmpp.codec import XMPPCodec
 
     assert XMPPCodec(config).decode(received[0].stanza, timestamp=NOW) is None
 

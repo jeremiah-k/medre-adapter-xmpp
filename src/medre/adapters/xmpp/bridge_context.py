@@ -14,6 +14,7 @@ from typing import Any
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 from medre.core.rendering.bridge_context import normalize_bridge_context
+
 from .config import plain_text
 
 NAMESPACE = "urn:medre:bridge-context:1"

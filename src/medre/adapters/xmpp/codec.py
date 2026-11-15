@@ -5,16 +5,16 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
 from xml.etree.ElementTree import Element
 
 from medre.core.events.canonical import CanonicalEvent, EventRelation, NativeRef
 from medre.core.events.metadata import EventMetadata, NativeMetadata, TransportMetadata
 
-from .styling import NAMESPACE, from_text
-from .config import XMPPConfig, bare_jid, plain_text
 from .bridge_context import extract_context
+from .config import XMPPConfig, bare_jid, plain_text
+from .styling import NAMESPACE, from_text
 
 CLIENT = "jabber:client"
 # Mutations require ownership and target binding. Never relay their bodies as

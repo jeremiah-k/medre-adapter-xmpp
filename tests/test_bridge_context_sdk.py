@@ -4,22 +4,21 @@ from unittest.mock import Mock
 from xml.etree.ElementTree import fromstring, tostring
 
 import pytest
-
-from medre.adapters.xmpp.bridge_context import (
-    MAX_CONTEXT_BYTES,
-    encode_context,
-    _xml_context,
-)
+from conftest import NOW, stanza
 from medre.core.rendering.bridge_context import (
     build_bridge_context,
     normalize_bridge_context,
 )
-
-from medre.adapters.xmpp.connection import SlixConnection
-from medre.adapters.xmpp.codec import XMPPCodec
-from medre.adapters.xmpp.renderer import XMPPRenderer
 from medre.core.rendering.renderer import RenderingContext
-from conftest import NOW, stanza
+
+from medre.adapters.xmpp.bridge_context import (
+    MAX_CONTEXT_BYTES,
+    _xml_context,
+    encode_context,
+)
+from medre.adapters.xmpp.codec import XMPPCodec
+from medre.adapters.xmpp.connection import SlixConnection
+from medre.adapters.xmpp.renderer import XMPPRenderer
 
 pytestmark = pytest.mark.xmpp_sdk
 

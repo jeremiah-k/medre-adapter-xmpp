@@ -2,11 +2,11 @@ import asyncio
 from dataclasses import replace
 
 import pytest
-
-from medre.core.contracts.adapter import AdapterPermanentError, AdapterSendError
-from medre.adapters.xmpp.session import XMPPSession
-from medre.adapters.xmpp.codec import InboundStanza
 from conftest import stanza
+from medre.core.contracts.adapter import AdapterPermanentError, AdapterSendError
+
+from medre.adapters.xmpp.codec import InboundStanza
+from medre.adapters.xmpp.session import XMPPSession
 
 
 class Connection:

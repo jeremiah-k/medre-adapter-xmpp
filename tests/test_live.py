@@ -17,9 +17,10 @@ async def test_native_room_ingress_and_direct_egress():
     path = os.environ.get("MEDRE_XMPP_TEST_CONFIG")
     if not path:
         pytest.skip("Set MEDRE_XMPP_TEST_CONFIG to a private two-account test config")
-    from slixmpp.plugins.xep_0004.stanza import Form
     from medre.core.contracts.adapter import AdapterContext
     from medre.core.rendering.renderer import RenderingResult
+    from slixmpp.plugins.xep_0004.stanza import Form
+
     from medre.adapters.xmpp.adapter import XMPPAdapter
     from medre.adapters.xmpp.config import XMPPConfig
     from medre.adapters.xmpp.connection import SlixConnection

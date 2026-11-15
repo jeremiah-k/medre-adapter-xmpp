@@ -3,11 +3,11 @@
 import asyncio
 
 import pytest
+from medre.core.contracts.typing import TypingActivity
+from test_session_machine import _Connection
 
 from medre.adapters.xmpp.adapter import XMPPAdapter
 from medre.adapters.xmpp.session import XMPPSession, _SessionPhase
-from medre.core.contracts.typing import TypingActivity
-from test_session_machine import _Connection
 
 
 @pytest.mark.parametrize("through_adapter", [False, True])

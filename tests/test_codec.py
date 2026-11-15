@@ -2,9 +2,9 @@ from dataclasses import replace
 from xml.etree.ElementTree import SubElement
 
 import pytest
+from conftest import NOW, stanza
 
 from medre.adapters.xmpp.codec import CLIENT, MUTATIONS, XMPPCodec
-from conftest import NOW, stanza
 
 
 def test_muc_identity_and_text_are_preserved(config):

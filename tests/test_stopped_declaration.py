@@ -9,14 +9,15 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from medre.adapters.xmpp.plugin import adapter_spec
-from medre.adapters.xmpp.stopped_declaration import declaration
 from medre.maintenance.stopped_declare import (
     DeclaredFile,
     declaration_from_spec,
     declared,
     plan_from_coverages,
 )
+
+from medre.adapters.xmpp.plugin import adapter_spec
+from medre.adapters.xmpp.stopped_declaration import declaration
 
 
 def test_spec_references_the_declaration_module():
