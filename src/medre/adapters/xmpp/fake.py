@@ -4,8 +4,6 @@ from datetime import datetime, timezone
 from uuid import uuid4
 from xml.etree.ElementTree import Element, SubElement
 
-from medre.core.supervision.diagnostic_contract import COMMON_DIAGNOSTIC_KEYS
-
 from medre.core.contracts.adapter import (
     AdapterContext,
     AdapterHandoffResult,
@@ -15,6 +13,7 @@ from medre.core.contracts.adapter import (
 from medre.core.contracts.typing import TypingSignal, TypingUpdate
 from medre.core.events.canonical import CanonicalEvent
 from medre.core.rendering.renderer import RenderingResult
+from medre.core.supervision.diagnostic_contract import COMMON_DIAGNOSTIC_KEYS
 
 from .adapter import XMPPAdapter, validate_payload
 from .codec import CLIENT
@@ -116,7 +115,9 @@ class FakeXMPPAdapter(XMPPAdapter):
         channel: str | None = None,
     ) -> CanonicalEvent:
         from dataclasses import replace
+
         import msgspec
+
         from .codec import XMPPCodec
 
         if event_kind not in {"message.created", "message.text"}:

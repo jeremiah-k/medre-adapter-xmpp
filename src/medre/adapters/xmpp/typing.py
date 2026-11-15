@@ -5,6 +5,7 @@ from __future__ import annotations
 from xml.etree.ElementTree import Element
 
 from medre.core.contracts.typing import TypingActivity
+
 from .codec import CLIENT
 from .config import XMPPConfig
 

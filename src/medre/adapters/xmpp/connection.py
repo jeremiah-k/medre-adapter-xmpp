@@ -9,13 +9,14 @@ from collections import OrderedDict
 from collections.abc import Callable, Mapping
 from typing import Any, Literal, cast
 from xml.etree.ElementTree import SubElement
-from .config import XMPPConfig
-from .codec import InboundStanza, CLIENT, room_stanza_id
-from .typing import CHATSTATES, activity_from_stanza
-from .bridge_context import append_context
-from medre.core.contracts.typing import TypingUpdate
 
 from medre.core.contracts.adapter import AdapterPermanentError, AdapterSendError
+from medre.core.contracts.typing import TypingUpdate
+
+from .bridge_context import append_context
+from .codec import CLIENT, InboundStanza, room_stanza_id
+from .config import XMPPConfig
+from .typing import CHATSTATES, activity_from_stanza
 
 MUC_ECHO_TIMEOUT_SECONDS = 5.0
 MAX_PENDING_ECHOES = 128
@@ -26,7 +27,7 @@ class SlixConnection:
         self, config: XMPPConfig, receive: Callable[[InboundStanza], None]
     ) -> None:
         # Native imports occur only when the real session starts.
-        from slixmpp import ClientXMPP, JID
+        from slixmpp import JID, ClientXMPP
 
         if not config.jid or not config.password:
             raise AdapterPermanentError(

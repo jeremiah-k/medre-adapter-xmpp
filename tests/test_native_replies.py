@@ -5,14 +5,14 @@ from xml.etree.ElementTree import SubElement
 
 import msgspec
 import pytest
-
+from conftest import NOW, rendered, stanza
 from medre.core.contracts.adapter import AdapterPermanentError
 from medre.core.events.canonical import EventRelation, NativeRef
 from medre.core.rendering.renderer import RenderingContext
+
 from medre.adapters.xmpp.adapter import validate_payload
 from medre.adapters.xmpp.codec import XMPPCodec
 from medre.adapters.xmpp.renderer import XMPPRenderer
-from conftest import NOW, rendered, stanza
 
 
 def reply_event(config, *, channel=None, adapter=None, quote="parent café 🦉"):

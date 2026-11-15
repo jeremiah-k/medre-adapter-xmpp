@@ -4,13 +4,13 @@ import json
 from types import SimpleNamespace
 
 import pytest
-
-from medre.adapters.xmpp.adapter import XMPPAdapter
-from medre.adapters.xmpp.fake import FakeXMPPAdapter
 from medre.core.supervision.diagnostic_contract import (
     COMMON_DIAGNOSTIC_KEYS,
     normalize_diagnostics,
 )
+
+from medre.adapters.xmpp.adapter import XMPPAdapter
+from medre.adapters.xmpp.fake import FakeXMPPAdapter
 
 
 def test_real_diagnostics_preserve_reported_native_health(config):

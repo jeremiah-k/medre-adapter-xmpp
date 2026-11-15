@@ -62,3 +62,6 @@ follow_imports = "silent"
 [[tool.mypy.overrides]]
 module = ["slixmpp", "slixmpp.*"]
 ignore_missing_imports = true
+
+[tool.isort]
+profile = "black"

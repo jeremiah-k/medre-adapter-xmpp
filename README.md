@@ -158,3 +158,8 @@ Stopping an XMPP connection cancels and awaits its pending entity-capability
 lookups as well as session setup and outgoing filters. Capability discovery
 remains enabled while connected; unanswered peer queries cannot retain
 background callbacks after shutdown.
+
+## Development tooling
+
+See [contributing](CONTRIBUTING.md) for the shared Trunk quality gate and uv-based
+editable development workflow.

@@ -3,8 +3,9 @@
 from dataclasses import replace
 from typing import Any
 
-from medre import adapter_spec as registration
 from medre.adapter_spec import AdapterSpec, SymbolRef
+
+from medre import adapter_spec as registration
 
 
 def adapter_spec() -> AdapterSpec:

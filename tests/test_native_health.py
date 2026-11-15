@@ -4,10 +4,10 @@ import asyncio
 from dataclasses import replace
 
 import pytest
+from medre.core.contracts.adapter import AdapterPermanentError
 
 from medre.adapters.xmpp.adapter import XMPPAdapter
 from medre.adapters.xmpp.session import XMPPSession
-from medre.core.contracts.adapter import AdapterPermanentError
 
 
 class HealthReports(list):
@@ -230,6 +230,7 @@ async def test_runner_cancellation_covers_cleanup_and_backoff(
             await asyncio.gather(adapter.session._runner, return_exceptions=True)
             assert reports[-1].health == "failed"
             from conftest import stanza
+
             from medre.adapters.xmpp.codec import InboundStanza
 
             adapter.session._enqueue(InboundStanza(stanza()))

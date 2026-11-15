@@ -1,15 +1,21 @@
 """Native stanza attribution preserves source claims without replacing XMPP authority."""
 
+import json
 from copy import deepcopy
 from dataclasses import replace
-import json
 from pathlib import Path
 from types import SimpleNamespace
 from xml.etree.ElementTree import SubElement, fromstring, tostring
 
 import msgspec
 import pytest
+from conftest import NOW, rendered, stanza
 from jsonschema import Draft202012Validator
+from medre.core.contracts.adapter import AdapterPermanentError
+from medre.core.events import EventRelation, NativeRef
+from medre.core.rendering.attribution import RelayAttribution
+from medre.core.rendering.bridge_context import build_bridge_context
+from medre.core.rendering.renderer import RenderingContext
 
 from medre.adapters.xmpp.adapter import validate_payload
 from medre.adapters.xmpp.bridge_context import (
@@ -21,12 +27,6 @@ from medre.adapters.xmpp.bridge_context import (
 )
 from medre.adapters.xmpp.codec import XMPPCodec
 from medre.adapters.xmpp.renderer import XMPPRenderer
-from medre.core.contracts.adapter import AdapterPermanentError
-from medre.core.events import EventRelation, NativeRef
-from medre.core.rendering.attribution import RelayAttribution
-from medre.core.rendering.bridge_context import build_bridge_context
-from medre.core.rendering.renderer import RenderingContext
-from conftest import NOW, rendered, stanza
 
 
 def context(config, **updates):

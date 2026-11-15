@@ -5,16 +5,16 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
+from collections.abc import Awaitable, Callable, Mapping
 from enum import Enum
-from collections.abc import Callable, Awaitable, Mapping
 from typing import Protocol
-from .codec import InboundStanza
-from .typing import CHATSTATES, activity_from_stanza
-from medre.core.contracts.typing import TypingActivity, TypingUpdate
 
 from medre.core.contracts.adapter import AdapterPermanentError, AdapterSendError
+from medre.core.contracts.typing import TypingActivity, TypingUpdate
 
+from .codec import InboundStanza
 from .config import XMPPConfig
+from .typing import CHATSTATES, activity_from_stanza
 
 _logger = logging.getLogger(__name__)
 

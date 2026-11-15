@@ -4,10 +4,10 @@ import asyncio
 from dataclasses import replace
 
 import pytest
-
-from medre.adapters.xmpp.session import XMPPSession, _SessionPhase
-from medre.adapters.xmpp.adapter import XMPPAdapter
 from medre.core.contracts.adapter import AdapterSendError
+
+from medre.adapters.xmpp.adapter import XMPPAdapter
+from medre.adapters.xmpp.session import XMPPSession, _SessionPhase
 
 
 class _Connection:
@@ -87,6 +87,7 @@ async def test_uncooperative_reconnect_cannot_survive_deadline_as_healthy(config
 
 async def test_clean_stopped_session_can_start_fresh_without_old_queue(config):
     from conftest import stanza
+
     from medre.adapters.xmpp.codec import InboundStanza
 
     connections, received = [], []

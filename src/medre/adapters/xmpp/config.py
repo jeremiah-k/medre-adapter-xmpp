@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from medre.core.rendering.attribution import validate_relay_prefix
-
 import math
-from dataclasses import dataclass, field
 from collections.abc import Iterable
+from dataclasses import dataclass, field
 from typing import Any
+
 from medre.config.paths import MedrePaths
+from medre.core.rendering.attribution import validate_relay_prefix
 
 
 def bare_jid(value: str) -> str:

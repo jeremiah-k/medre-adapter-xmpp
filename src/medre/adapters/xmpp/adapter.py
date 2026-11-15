@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Callable
-from typing import TYPE_CHECKING, cast
+from collections.abc import Callable, Mapping
 from dataclasses import replace
-
-from medre.core.supervision.diagnostic_contract import COMMON_DIAGNOSTIC_KEYS
+from typing import TYPE_CHECKING, cast
 
 from medre.core.contracts.adapter import (
     AdapterCapabilities,
@@ -20,9 +18,10 @@ from medre.core.contracts.adapter import (
 )
 from medre.core.contracts.typing import TypingActivity, TypingUpdate
 from medre.core.rendering.renderer import RenderingResult
+from medre.core.supervision.diagnostic_contract import COMMON_DIAGNOSTIC_KEYS
 
-from .codec import InboundStanza, XMPPCodec
 from .bridge_context import decode_context
+from .codec import InboundStanza, XMPPCodec
 from .config import XMPPConfig, plain_text
 
 if TYPE_CHECKING:

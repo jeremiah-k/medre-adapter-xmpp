@@ -4,16 +4,16 @@ import asyncio
 from collections import OrderedDict
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
-from xml.etree.ElementTree import Element, SubElement, tostring, fromstring
+from xml.etree.ElementTree import Element, SubElement, fromstring, tostring
 
 import pytest
+from conftest import stanza
+from medre.core.contracts.typing import TypingTarget, TypingUpdate
 
-from medre.adapters.xmpp.codec import InboundStanza, CLIENT
+from medre.adapters.xmpp.codec import CLIENT, InboundStanza
 from medre.adapters.xmpp.connection import SlixConnection
 from medre.adapters.xmpp.session import XMPPSession, _SessionPhase
 from medre.adapters.xmpp.typing import CHATSTATES, activity_from_stanza
-from medre.core.contracts.typing import TypingTarget, TypingUpdate
-from conftest import stanza
 
 
 def state(name="composing", **kwargs):
@@ -203,8 +203,10 @@ async def test_fake_activity_uses_optional_sink_and_separate_bounded_history():
     """SDK-free fake contracts mirror native capability without message evidence."""
     import logging
     from datetime import datetime, timezone
+
     from medre.core.contracts.adapter import AdapterContext
     from medre.core.contracts.typing import TypingActivity
+
     from medre.adapters.xmpp.fake import FakeXMPPAdapter
 
     fake = FakeXMPPAdapter("fake")

@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock
 from xml.etree.ElementTree import fromstring
 
 import pytest
-
 from medre.core.contracts.adapter import AdapterSendError
+
 from medre.adapters.xmpp.connection import SlixConnection
 
 pytestmark = pytest.mark.xmpp_sdk
@@ -196,9 +196,10 @@ async def test_reply_xml_escapes_ids_and_marks_unicode_quote_offsets(config):
 
 async def test_bodyless_chat_state_uses_native_hook_without_duplicate_content(config):
     """The generic SDK message matcher requires a body; XEP-0085 owns controls."""
-    from slixmpp.stanza import Message
-    from conftest import stanza
     from xml.etree.ElementTree import SubElement
+
+    from conftest import stanza
+    from slixmpp.stanza import Message
 
     received = []
     connection = SlixConnection(config, received.append)

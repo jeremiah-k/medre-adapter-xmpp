@@ -13,3 +13,17 @@ htmlcov/
 .core/
 coverage-*.xml
 junit-*.xml
+
+# Local agent work, sibling core checkouts and generated reports
+/.zcode/
+/.core/
+coderabbit_*.md
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage-*.xml
+junit-*.xml
+htmlcov/
+.env
+.medre-dev.yaml

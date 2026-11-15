@@ -7,22 +7,21 @@ from typing import Any
 
 from medre.adapters.metadata import project_source_fields
 from medre.core.events.canonical import CanonicalEvent
-from medre.core.events.text import select_message_body
-from medre.core.events.text import StyledText, TextSpan
+from medre.core.events.text import StyledText, TextSpan, select_message_body
 from medre.core.rendering.attribution import (
-    resolve_relay_attribution,
     format_checked_relay_prefix,
+    resolve_relay_attribution,
 )
 from medre.core.rendering.bridge_context import build_bridge_context
-from .bridge_context import encode_context
 from medre.core.rendering.relations import (
     compose_relation_text,
     destination_native_message_id,
 )
 from medre.core.rendering.renderer import RenderingContext, RenderingResult
 
-from .styling import from_text, to_text
+from .bridge_context import encode_context
 from .config import XMPPConfig, plain_text
+from .styling import from_text, to_text
 
 
 class XMPPRenderer:

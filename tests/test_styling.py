@@ -1,19 +1,19 @@
 """XEP-0393 examples, bounded parsing, explicit plain-text fallback."""
 
 from dataclasses import replace
-from msgspec.structs import replace as event_replace
 from xml.etree.ElementTree import SubElement
 
 import pytest
+from conftest import NOW, stanza
+from medre.core.contracts.adapter import AdapterPermanentError
+from medre.core.events.text import MAX_STYLED_TEXT_LENGTH, StyledText, TextSpan
+from medre.core.rendering.renderer import RenderingContext
+from msgspec.structs import replace as event_replace
 
 from medre.adapters.xmpp.adapter import validate_payload
 from medre.adapters.xmpp.codec import XMPPCodec
 from medre.adapters.xmpp.renderer import XMPPRenderer
 from medre.adapters.xmpp.styling import NAMESPACE, from_text, to_text
-from medre.core.contracts.adapter import AdapterPermanentError
-from medre.core.events.text import StyledText, TextSpan, MAX_STYLED_TEXT_LENGTH
-from medre.core.rendering.renderer import RenderingContext
-from conftest import NOW, stanza
 
 
 @pytest.mark.parametrize(

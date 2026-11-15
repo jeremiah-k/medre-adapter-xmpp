@@ -5,9 +5,9 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-
 from medre.config.loader import parse_runtime_config
 from medre.config.paths import resolve
+
 from medre.adapters.xmpp.config import XMPPConfig, bare_jid
 from medre.adapters.xmpp.plugin import adapter_spec
 
@@ -133,6 +133,7 @@ def test_configuration_schema_matches_dataclass_fields():
 
 def test_route_preflight_refuses_unconfigured_source_and_destination(config):
     from types import SimpleNamespace
+
     from medre.adapters.xmpp.config import prepare_config
 
     def route(source, destination):
@@ -163,8 +164,9 @@ def test_route_preflight_refuses_unconfigured_source_and_destination(config):
 
 def test_native_schema_accepts_the_actual_codec_shape(config):
     import msgspec
-    from jsonschema import Draft202012Validator
     from conftest import NOW, stanza
+    from jsonschema import Draft202012Validator
+
     from medre.adapters.xmpp.codec import XMPPCodec
 
     schema = json.loads(
