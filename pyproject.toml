@@ -5,7 +5,7 @@ description = "XMPP direct chat and multi-user rooms for MEDRE"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-dependencies = ["medre>=0.1.0,<0.2.0", "slixmpp==1.17.0"]
+dependencies = ["medre>=0.1.1,<0.2.0", "slixmpp==1.17.0"]
 classifiers = ["Typing :: Typed"]
 
 [project.entry-points."medre.adapters"]
