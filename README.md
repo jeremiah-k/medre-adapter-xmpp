@@ -10,12 +10,16 @@ persistence, policy and delivery planning.
 For a MEDRE installation managed by uv tools, install the provider explicitly:
 
 ```bash
-medre adapters install 'medre-adapter-xmpp @ git+https://github.com/jeremiah-k/medre-adapter-xmpp.git@main'
+uv tool install medre
+medre adapters install xmpp
 medre adapters check
 ```
 
-Use a full merged commit instead of `main` for repeatable deployments. No sibling
-clones are required. A custom source catalog can provide an `xmpp` alias:
+Core 0.1.1 and later default fresh adapter requests to index packages.
+Existing saved Git requests and catalogs retain their sources. On Windows,
+run the printed uv installation command after MEDRE exits. No sibling
+clones are required. To opt into Git development, a custom source catalog
+can provide an `xmpp` alias (pin a full merged commit for reproducibility):
 
 ```yaml
 adapters:
