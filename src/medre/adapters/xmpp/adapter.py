@@ -23,6 +23,7 @@ from medre.core.supervision.diagnostic_contract import COMMON_DIAGNOSTIC_KEYS
 from .bridge_context import decode_context
 from .codec import InboundStanza, XMPPCodec
 from .config import XMPPConfig, plain_text
+from .startup_info import build_startup_info
 
 if TYPE_CHECKING:
     from .session import XMPPSession
@@ -220,6 +221,22 @@ class XMPPAdapter(AdapterContract):
             native_channel_id=result.target_channel,
             note="XML written to the local TLS transport; recipient delivery is unconfirmed",
         )
+
+    def startup_info(self) -> dict[str, object]:
+        """Facts the adapter already holds, for core's startup block.
+
+        Core duck-types this callable at the ready transition and renders
+        the returned scalar facts; display ordering and caps are core's
+        business.  Pure read: no stanza, disco, or DNS I/O, no resource
+        acquisition, no session mutation — the facts are the configured
+        account JID and optional connection override, safe to call from
+        any worker thread.  Server software is knowable only through a
+        disco network probe and is never reported; facts that are not
+        held (no configured JID, no host/port override) are omitted
+        rather than probed.  Startup info never gates, blocks, or
+        delays the native session.
+        """
+        return build_startup_info(self.config)
 
     def diagnostics(self) -> dict[str, object]:
         """Expose bounded-admission and recovery evidence without credentials."""
