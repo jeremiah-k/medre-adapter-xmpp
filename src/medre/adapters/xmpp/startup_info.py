@@ -4,7 +4,7 @@ Core's runtime duck-types an optional ``startup_info()`` callable on a
 built adapter and renders the returned scalar facts at the adapter's
 ready transition (see the adapter-startup-info specification in the
 core distribution).  This module shapes the facts this adapter holds at
-that transition — the configured account JID's localpart and domain and
+that transition — the configured bare account JID and
 the optional configured connection endpoint — into the plain mapping
 the contract expects.
 
@@ -48,21 +48,9 @@ def _installed_slixmpp_version() -> str | None:
 
 
 def _account_facts(config: XMPPConfig) -> list[dict[str, Any]]:
-    """Account identity facts for the configured JID, in display order.
-
-    The bare JID's localpart and domain come straight from the adapter
-    configuration; the resource is connection state, not account
-    identity, and is never reported.  An unconfigured JID yields no
-    facts.
-    """
+    """Keep the configured bare JID copyable as one account fact."""
     bare = config.jid.split("/", 1)[0]
-    if "@" not in bare:
-        return []
-    localpart, _, domain = bare.partition("@")
-    return [
-        {"name": "localpart", "value": localpart, "label": "local"},
-        {"name": "domain", "value": domain, "label": "domain"},
-    ]
+    return [{"name": "jid", "value": bare}] if bare else []
 
 
 def _endpoint_facts(config: XMPPConfig) -> list[dict[str, Any]]:

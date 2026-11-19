@@ -3,8 +3,7 @@
 Covers:
 - ``startup_info`` is discovered duck-typed on the adapter object (real
   and fake).
-- Facts come only from already-held state: the configured account JID's
-  localpart and domain, the optional configured host/port override, and
+- Facts come only from already-held state: the configured bare account JID, the optional configured host/port override, and
   the installed slixmpp distribution version read via
   ``importlib.metadata`` (never a source literal — the pin-hygiene
   guard keeps pins in pyproject only).
@@ -65,8 +64,7 @@ def _make_config(**overrides: Any) -> XMPPConfig:
 
 def _account_row() -> list[dict[str, Any]]:
     return [
-        {"name": "localpart", "value": "bot", "label": "local"},
-        {"name": "domain", "value": "example.org", "label": "domain"},
+        {"name": "jid", "value": "bot@example.org"},
     ]
 
 
@@ -117,7 +115,7 @@ def test_fake_adapter_exposes_discoverable_startup_info() -> None:
 def test_account_facts_come_from_configured_jid(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The bare JID's localpart and domain are reported; the resource is not."""
+    """The complete bare JID is a single fact."""
     monkeypatch.setattr(startup_info_module, "_installed_slixmpp_version", lambda: None)
     adapter = XMPPAdapter(_make_config())
     assert adapter.startup_info() == {"rows": [_account_row()]}
@@ -139,7 +137,7 @@ def test_endpoint_override_and_version_follow_held_state() -> None:
     adapter = XMPPAdapter(_make_config(host="c2s.example.net", port=5222))
     rows = adapter.startup_info()["rows"]
     names = [fact["name"] for row in rows for fact in row]
-    assert {"localpart", "domain", "host", "port"} <= set(names)
+    assert {"jid", "host", "port"} <= set(names)
     values = [
         fact["value"]
         for row in rows
@@ -234,13 +232,11 @@ async def test_adapter_emits_held_facts_through_core(
     info = await collect_startup_info("xmpp-1", "xmpp", adapter, emitted_at=_EMITTED_AT)
     assert info is not None
     assert [(f.name, f.row, f.label) for f in info.fields] == [
-        ("localpart", 0, "local"),
-        ("domain", 0, "domain"),
+        ("jid", 0, None),
     ]
-    assert info.fields[0].value == "bot"
-    assert info.fields[1].value == "example.org"
+    assert info.fields[0].value == "bot@example.org"
     assert render_startup_info_block("xmpp.xmpp-1  ready", info) == (
-        "xmpp.xmpp-1  ready\n" "  local bot · domain example.org"
+        "xmpp.xmpp-1  ready\n" "  bot@example.org"
     )
 
 
@@ -257,15 +253,14 @@ async def test_core_collection_keeps_version_fact_when_held(
     info = await collect_startup_info("xmpp-1", "xmpp", adapter, emitted_at=_EMITTED_AT)
     assert info is not None
     assert [(f.name, f.row, f.label) for f in info.fields] == [
-        ("localpart", 0, "local"),
-        ("domain", 0, "domain"),
+        ("jid", 0, None),
         ("host", 1, "host"),
         ("port", 1, "port"),
         ("slixmpp_version", 1, "slixmpp"),
     ]
-    assert info.fields[4].value == _SYNTHETIC_SLIXMPP_VERSION
+    assert info.fields[3].value == _SYNTHETIC_SLIXMPP_VERSION
     assert render_startup_info_block("xmpp.xmpp-1  ready", info) == (
         "xmpp.xmpp-1  ready\n"
-        "  local bot · domain example.org\n"
+        "  bot@example.org\n"
         "  host c2s.example.net · port 5222 · slixmpp 1.2.3"
     )
