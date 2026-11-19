@@ -235,9 +235,10 @@ async def test_adapter_emits_held_facts_through_core(
         ("jid", 0, None),
     ]
     assert info.fields[0].value == "bot@example.org"
-    assert render_startup_info_block("xmpp.xmpp-1  ready", info) == (
-        "xmpp.xmpp-1  ready\n" "  bot@example.org"
-    )
+    lines = render_startup_info_block("xmpp.xmpp-1  ready", info).splitlines()
+    assert lines[0] == "xmpp.xmpp-1  ready"
+    # Core owns default labels; providers support both renderer versions.
+    assert lines[1:] in (["  bot@example.org"], ["  jid bot@example.org"])
 
 
 async def test_core_collection_keeps_version_fact_when_held(
@@ -259,8 +260,7 @@ async def test_core_collection_keeps_version_fact_when_held(
         ("slixmpp_version", 1, "slixmpp"),
     ]
     assert info.fields[3].value == _SYNTHETIC_SLIXMPP_VERSION
-    assert render_startup_info_block("xmpp.xmpp-1  ready", info) == (
-        "xmpp.xmpp-1  ready\n"
-        "  bot@example.org\n"
-        "  host c2s.example.net · port 5222 · slixmpp 1.2.3"
-    )
+    lines = render_startup_info_block("xmpp.xmpp-1  ready", info).splitlines()
+    assert lines[0] == "xmpp.xmpp-1  ready"
+    assert lines[1] in {"  bot@example.org", "  jid bot@example.org"}
+    assert lines[2:] == ["  host c2s.example.net · port 5222 · slixmpp 1.2.3"]
