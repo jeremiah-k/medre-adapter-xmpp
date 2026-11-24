@@ -1,33 +1,24 @@
-# MEDRE XMPP adapter
+# medre-adapter-xmpp
 
-Bridge live text between configured XMPP contacts, multi-user rooms and other
-[MEDRE](https://github.com/jeremiah-k/medre) transports. The adapter uses Slixmpp
-for XMPP negotiation, authentication, TLS and MUC; MEDRE handles routing,
-persistence, policy and delivery planning.
+The XMPP adapter for MEDRE.
 
 ## Install
 
-For a MEDRE installation managed by uv tools, install the provider explicitly:
+Use [uv](https://docs.astral.sh/uv/getting-started/installation/) to install
+MEDRE and this adapter in the same persistent tool environment:
 
 ```bash
 uv tool install medre
 medre adapters install xmpp
-medre adapters check
 ```
 
-Core 0.1.1 and later default fresh adapter requests to index packages.
-Existing saved Git requests and catalogs retain their sources. On Windows,
-run the printed uv installation command after MEDRE exits. No sibling
-clones are required. To opt into Git development, a custom source catalog
-can provide an `xmpp` alias (pin a full merged commit for reproducibility):
-
-```yaml
-adapters:
-  xmpp: medre-adapter-xmpp @ git+https://github.com/jeremiah-k/medre-adapter-xmpp.git@main
-```
-
-Use `medre adapters install xmpp --sources /path/to/sources.yaml` with that catalog.
-The catalog chooses package sources; runtime YAML contains connection settings.
+No sibling clones are required. On Windows, the package-changing command
+prints a uv installation command to run after MEDRE exits. Adapter
+installation defaults to package-index requirements; existing saved Git
+requests and catalogs are preserved. For a locked uv deployment project,
+private Git sources, local checkouts, and the same-environment requirement,
+see the
+[adapter installation guide](https://github.com/jeremiah-k/medre/blob/main/docs/ops/adapter-installation.md).
 
 ## Configure
 
@@ -52,7 +43,7 @@ adapters:
       rooms: [bridge@conference.example.org]
       peers: [friend@example.org]
       origin_label: XMPP
-      # password is supplied through the environment, not version control.
+routes: {}
 ```
 
 Set `MEDRE_ADAPTER__CHAT__PASSWORD` in the process environment through the secret
@@ -72,7 +63,21 @@ occupant (`room@service/nick`); direct messages use the contact's bare JID.
 
 `medre config sample` includes SDK-free fake XMPP values after installation.
 Fake smoke evidence exercises routing and rendering; it proves no server login
-or native transport delivery.
+or native transport delivery. For server selection, certificate requirements,
+and troubleshooting, see the
+[XMPP setup guide](https://github.com/jeremiah-k/medre/blob/main/docs/ops/transport-setup/xmpp.md).
+
+## Verify
+
+Confirm the installed adapter and the saved configuration resolve:
+
+```bash
+medre adapters check --config connections.yaml
+```
+
+Startup joins every configured room before readiness; the setup guide's
+[Verify](https://github.com/jeremiah-k/medre/blob/main/docs/ops/transport-setup/xmpp.md#verify)
+section shows the bridge checks and a healthy start.
 
 ## Behavior
 
@@ -106,9 +111,9 @@ those extensions. The [adapter contract](docs/spec/adapter.md) defines behavior;
 [configuration](docs/schemas/config.schema.json) and
 [native metadata](docs/schemas/native.schema.json) schemas publish the shapes.
 
-## Develop and test
+## Development
 
-Keep the core checkout and provider checkout anywhere. From the core checkout:
+Keep the core checkout and adapter checkout anywhere. From the core checkout:
 
 ```bash
 uv sync --locked --extra dev
@@ -118,20 +123,32 @@ uv run --no-sync medre dev test --sources /path/to/sources.yaml \
   --editable xmpp=/path/to/medre-adapter-xmpp xmpp -- -q
 ```
 
-The source catalog above adds the alias while the editable path selects the
-actual checkout. Use `dev sync --sdk` to install native dependencies, then
-the SDK-only selection in [contributing](CONTRIBUTING.md) for pinned SDK
-contracts. Keep the same catalog and editable selection on both commands; a local `.medre-dev.yaml`
-profile can remember them. No temporary core branch is recorded in package
-requirements, lockfiles or CI variables.
+To opt into Git development, a custom source catalog can provide an `xmpp`
+alias (pin a full merged commit for reproducibility):
+
+```yaml
+adapters:
+  xmpp: medre-adapter-xmpp @ git+https://github.com/jeremiah-k/medre-adapter-xmpp.git@main
+```
+
+Use `medre adapters install xmpp --sources /path/to/sources.yaml` with that
+catalog. The catalog chooses package sources; runtime YAML contains connection
+settings. The source catalog above adds the alias while the editable path
+selects the actual checkout. Use `dev sync --sdk` to install native
+dependencies, then the SDK-only selection in [contributing](CONTRIBUTING.md)
+for pinned SDK contracts. Keep the same catalog and editable selection on both
+commands; a local `.medre-dev.yaml` profile can remember them. No temporary
+core branch is recorded in package requirements, lockfiles or CI variables.
 
 For an existing Python environment, install the chosen core checkout and this
-provider using that interpreter's pip interface. The deterministic suite needs
+adapter using that interpreter's pip interface. The deterministic suite needs
 core's dev dependencies; the SDK tier additionally needs the pinned Slixmpp SDK.
 CI checks core `main`, resolved once per run, on Python 3.11–3.14 with SDK-free
 and native SDK jobs. Keep `MEDRE_CORE_REF` unset; `core_ref` is a one-run
 qualification input, not a committed dependency.
 An authenticated live-server test is separate from these offline checks.
+
+See [contributing](CONTRIBUTING.md) for the shared Trunk quality gate.
 
 ### Opt-in native server proof
 
@@ -162,8 +179,3 @@ Stopping an XMPP connection cancels and awaits its pending entity-capability
 lookups as well as session setup and outgoing filters. Capability discovery
 remains enabled while connected; unanswered peer queries cannot retain
 background callbacks after shutdown.
-
-## Development tooling
-
-See [contributing](CONTRIBUTING.md) for the shared Trunk quality gate and uv-based
-editable development workflow.
